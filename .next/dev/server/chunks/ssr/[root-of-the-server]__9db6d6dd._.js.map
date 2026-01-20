@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/User/Desktop/LingoMate/app/page.tsx"],"sourcesContent":["import React from 'react';\r\n\r\nconst styles = {\r\n  Screen: {\r\n    backgroundColor: '#161616',\r\n    minHeight: '100vh',\r\n    width: '100%',\r\n  },\r\n};\r\n\r\nconst Screen = (props) => {\r\n  return (\r\n    <div style={styles.Screen}>\r\n      {props.children}\r\n    </div>\r\n  );\r\n};\r\n\r\nexport default Screen;\r\n"],"names":[],"mappings":";;;;;;AAEA,MAAM,SAAS;IACb,QAAQ;QACN,iBAAiB;QACjB,WAAW;QACX,OAAO;IACT;AACF;AAEA,MAAM,SAAS,CAAC;IACd,qBACE,sQAAC;QAAI,OAAO,OAAO,MAAM;kBACtB,MAAM,QAAQ;;;;;;AAGrB;uCAEe","debugId":null}}]
+}

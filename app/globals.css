@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+html {
+  @apply bg-white;
+}
+
+body {
+  @apply bg-white text-gray-900;
+  margin: 0;
+  padding: 0;
+}
+
