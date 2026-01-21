@@ -461,6 +461,10 @@
     margin-left: calc(var(--spacing) * 6);
   }
 
+  .block {
+    display: block;
+  }
+
   .flex {
     display: flex;
   }
@@ -579,6 +583,10 @@
 
   .flex-1 {
     flex: 1;
+  }
+
+  .shrink {
+    flex-shrink: 1;
   }
 
   .transform {

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import ChatWindow from '@/features/reader/ChatWindow';
 import { SidebarProvider, useSidebar } from './SidebarContext';
@@ -32,7 +33,7 @@ const styles = {
 const chatBubbleStyles = {
   ChatBubble: {
     position: 'fixed' as const,
-    bottom: '24px',
+    bottom: '100px',
     right: '24px',
     width: '56px',
     height: '56px',

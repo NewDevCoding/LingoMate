@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import ArticleRow from '@/features/reader/ArticleRow';
 import { mockArticles } from '@/features/reader/article.service';
 import { Article } from '@/types/article';
@@ -77,14 +78,15 @@ const styles = {
 
 export default function ReaderPage() {
   const { isCollapsed } = useSidebar();
+  const router = useRouter();
   
   // Split articles into two rows (first 6, then rest)
   const firstRowArticles = mockArticles.slice(0, 6);
   const secondRowArticles = mockArticles.slice(6);
 
   const handleArticleClick = (article: Article) => {
-    // Placeholder for article navigation
-    console.log('Article clicked:', article.title);
+    // Navigate to interactive reader page
+    router.push(`/reader/${article.id}`);
   };
 
   return (
