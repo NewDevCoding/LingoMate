@@ -30,15 +30,16 @@ const styles = {
             gap: '16px',
             overflowY: 'auto',
             transition: 'width 0.3s ease, padding 0.3s ease',
-            position: 'relative'
+            position: 'relative',
+            alignItems: isCollapsed ? 'center' : 'stretch'
         }),
     // Header with Logo and Toggle
-    Header: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '8px'
-    },
+    Header: (isCollapsed)=>({
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isCollapsed ? 'center' : 'space-between',
+            marginBottom: '8px'
+        }),
     // Logo
     Logo: (isCollapsed)=>({
             color: '#ffffff',
@@ -64,12 +65,13 @@ const styles = {
         transition: 'background-color 0.2s'
     },
     // Navigation Container
-    NavContainer: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        flex: 1
-    },
+    NavContainer: (isCollapsed)=>({
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            flex: 1,
+            alignItems: isCollapsed ? 'center' : 'stretch'
+        }),
     // Nav Item (inactive)
     NavItem: (isCollapsed)=>({
             color: '#ffffff',
@@ -82,9 +84,11 @@ const styles = {
             display: 'flex',
             alignItems: 'center',
             justifyContent: isCollapsed ? 'center' : 'flex-start',
-            gap: '12px',
+            gap: isCollapsed ? '0' : '12px',
             transition: 'all 0.2s',
-            textDecoration: 'none'
+            textDecoration: 'none',
+            minWidth: isCollapsed ? '56px' : 'auto',
+            width: isCollapsed ? '56px' : 'auto'
         }),
     // Nav Item (active)
     NavItemActive: (isCollapsed)=>({
@@ -98,10 +102,12 @@ const styles = {
             display: 'flex',
             alignItems: 'center',
             justifyContent: isCollapsed ? 'center' : 'flex-start',
-            gap: '12px',
+            gap: isCollapsed ? '0' : '12px',
             backgroundColor: '#26c541',
             transition: 'all 0.2s',
-            textDecoration: 'none'
+            textDecoration: 'none',
+            minWidth: isCollapsed ? '56px' : 'auto',
+            width: isCollapsed ? '56px' : 'auto'
         }),
     // Nav Text
     NavText: (isCollapsed)=>({
@@ -197,15 +203,15 @@ const Sidebar = ({ isCollapsed, onToggle })=>{
         style: styles.SidebarContainer(isCollapsed),
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                style: styles.Header,
+                style: styles.Header(isCollapsed),
                 children: [
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                    !isCollapsed && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         style: styles.Logo(isCollapsed),
                         children: "LingoMate"
                     }, void 0, false, {
                         fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                        lineNumber: 200,
-                        columnNumber: 9
+                        lineNumber: 206,
+                        columnNumber: 26
                     }, ("TURBOPACK compile-time value", void 0)),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                         style: styles.ToggleButton,
@@ -224,37 +230,39 @@ const Sidebar = ({ isCollapsed, onToggle })=>{
                             fill: "none",
                             stroke: "currentColor",
                             strokeWidth: "2",
-                            children: isCollapsed ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                            children: isCollapsed ? // Pointing right when collapsed (to expand)
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
                                 d: "M9 18l6-6-6-6"
                             }, void 0, false, {
                                 fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                                lineNumber: 214,
+                                lineNumber: 221,
                                 columnNumber: 15
-                            }, ("TURBOPACK compile-time value", void 0)) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                            }, ("TURBOPACK compile-time value", void 0)) : // Pointing left when expanded (to collapse)
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
                                 d: "M15 18l-6-6 6-6"
                             }, void 0, false, {
                                 fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                                lineNumber: 216,
+                                lineNumber: 224,
                                 columnNumber: 15
                             }, ("TURBOPACK compile-time value", void 0))
                         }, void 0, false, {
                             fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                            lineNumber: 212,
+                            lineNumber: 218,
                             columnNumber: 11
                         }, ("TURBOPACK compile-time value", void 0))
                     }, void 0, false, {
                         fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                        lineNumber: 201,
+                        lineNumber: 207,
                         columnNumber: 9
                     }, ("TURBOPACK compile-time value", void 0))
                 ]
             }, void 0, true, {
                 fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                lineNumber: 199,
+                lineNumber: 205,
                 columnNumber: 7
             }, ("TURBOPACK compile-time value", void 0)),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("nav", {
-                style: styles.NavContainer,
+                style: styles.NavContainer(isCollapsed),
                 children: navItems.map((item)=>{
                     const isActive = pathname === item.href;
                     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -263,38 +271,41 @@ const Sidebar = ({ isCollapsed, onToggle })=>{
                         title: isCollapsed ? item.name : undefined,
                         children: [
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
-                                width: "20",
-                                height: "20",
+                                width: "24",
+                                height: "24",
                                 viewBox: "0 0 24 24",
                                 fill: "none",
                                 stroke: "currentColor",
                                 strokeWidth: "2",
+                                style: {
+                                    flexShrink: 0
+                                },
                                 children: [
                                     item.name === 'Dashboard' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
                                         d: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
                                     }, void 0, false, {
                                         fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                                        lineNumber: 236,
+                                        lineNumber: 252,
                                         columnNumber: 19
                                     }, ("TURBOPACK compile-time value", void 0)),
                                     item.name === 'Reader' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
                                         d: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
                                     }, void 0, false, {
                                         fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                                        lineNumber: 239,
+                                        lineNumber: 255,
                                         columnNumber: 19
                                     }, ("TURBOPACK compile-time value", void 0)),
                                     item.name === 'Vocabulary' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
                                         d: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
                                     }, void 0, false, {
                                         fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                                        lineNumber: 242,
+                                        lineNumber: 258,
                                         columnNumber: 19
                                     }, ("TURBOPACK compile-time value", void 0))
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                                lineNumber: 234,
+                                lineNumber: 242,
                                 columnNumber: 15
                             }, ("TURBOPACK compile-time value", void 0)),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -302,22 +313,22 @@ const Sidebar = ({ isCollapsed, onToggle })=>{
                                 children: item.name
                             }, void 0, false, {
                                 fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                                lineNumber: 245,
+                                lineNumber: 261,
                                 columnNumber: 15
                             }, ("TURBOPACK compile-time value", void 0))
                         ]
                     }, item.name, true, {
                         fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                        lineNumber: 227,
+                        lineNumber: 235,
                         columnNumber: 13
                     }, ("TURBOPACK compile-time value", void 0));
                 })
             }, void 0, false, {
                 fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                lineNumber: 223,
+                lineNumber: 231,
                 columnNumber: 7
             }, ("TURBOPACK compile-time value", void 0)),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+            !isCollapsed && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                 style: styles.UpgradeCard(isCollapsed),
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -331,53 +342,53 @@ const Sidebar = ({ isCollapsed, onToggle })=>{
                                 d: "M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
                             }, void 0, false, {
                                 fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                                lineNumber: 256,
-                                columnNumber: 13
+                                lineNumber: 273,
+                                columnNumber: 15
                             }, ("TURBOPACK compile-time value", void 0))
                         }, void 0, false, {
                             fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                            lineNumber: 255,
-                            columnNumber: 11
+                            lineNumber: 272,
+                            columnNumber: 13
                         }, ("TURBOPACK compile-time value", void 0))
                     }, void 0, false, {
                         fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                        lineNumber: 253,
-                        columnNumber: 9
+                        lineNumber: 270,
+                        columnNumber: 11
                     }, ("TURBOPACK compile-time value", void 0)),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         style: styles.UpgradeTitle(isCollapsed),
                         children: "Upgrade to Pro"
                     }, void 0, false, {
                         fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                        lineNumber: 259,
-                        columnNumber: 9
+                        lineNumber: 276,
+                        columnNumber: 11
                     }, ("TURBOPACK compile-time value", void 0)),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         style: styles.UpgradeDescription(isCollapsed),
                         children: "Unlock unlimited hearts & more !"
                     }, void 0, false, {
                         fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                        lineNumber: 260,
-                        columnNumber: 9
+                        lineNumber: 277,
+                        columnNumber: 11
                     }, ("TURBOPACK compile-time value", void 0)),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                         style: styles.Button(isCollapsed),
-                        children: isCollapsed ? 'GET' : 'GET SUPER'
+                        children: "GET SUPER"
                     }, void 0, false, {
                         fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                        lineNumber: 263,
-                        columnNumber: 9
+                        lineNumber: 280,
+                        columnNumber: 11
                     }, ("TURBOPACK compile-time value", void 0))
                 ]
             }, void 0, true, {
                 fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-                lineNumber: 252,
-                columnNumber: 7
+                lineNumber: 269,
+                columnNumber: 9
             }, ("TURBOPACK compile-time value", void 0))
         ]
     }, void 0, true, {
         fileName: "[project]/Desktop/LingoMate/components/Sidebar.tsx",
-        lineNumber: 197,
+        lineNumber: 203,
         columnNumber: 5
     }, ("TURBOPACK compile-time value", void 0));
 };
@@ -390,6 +401,83 @@ _c = Sidebar;
 const __TURBOPACK__default__export__ = Sidebar;
 var _c;
 __turbopack_context__.k.register(_c, "Sidebar");
+if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
+    __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
+}
+}),
+"[project]/Desktop/LingoMate/components/AppLayout.tsx [app-client] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "default",
+    ()=>AppLayout
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/Desktop/LingoMate/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/Desktop/LingoMate/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$components$2f$Sidebar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/Desktop/LingoMate/components/Sidebar.tsx [app-client] (ecmascript)");
+;
+var _s = __turbopack_context__.k.signature();
+'use client';
+;
+;
+const styles = {
+    Screen: {
+        backgroundColor: '#161616',
+        minHeight: '100vh',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'row'
+    },
+    SidebarWrapper: {
+        flexShrink: 0,
+        position: 'relative'
+    },
+    MainContent: {
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column'
+    }
+};
+function AppLayout({ children }) {
+    _s();
+    const [isCollapsed, setIsCollapsed] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        style: styles.Screen,
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                style: styles.SidebarWrapper,
+                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$components$2f$Sidebar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                    isCollapsed: isCollapsed,
+                    onToggle: ()=>setIsCollapsed(!isCollapsed)
+                }, void 0, false, {
+                    fileName: "[project]/Desktop/LingoMate/components/AppLayout.tsx",
+                    lineNumber: 33,
+                    columnNumber: 9
+                }, this)
+            }, void 0, false, {
+                fileName: "[project]/Desktop/LingoMate/components/AppLayout.tsx",
+                lineNumber: 32,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$Desktop$2f$LingoMate$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                style: styles.MainContent,
+                children: children
+            }, void 0, false, {
+                fileName: "[project]/Desktop/LingoMate/components/AppLayout.tsx",
+                lineNumber: 35,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/Desktop/LingoMate/components/AppLayout.tsx",
+        lineNumber: 31,
+        columnNumber: 5
+    }, this);
+}
+_s(AppLayout, "XL80Ke9pMdZ2JRKLtHkkSCCoQZ0=");
+_c = AppLayout;
+var _c;
+__turbopack_context__.k.register(_c, "AppLayout");
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
 }
@@ -1558,4 +1646,4 @@ module.exports = __turbopack_context__.r("[project]/Desktop/LingoMate/node_modul
 }),
 ]);
 
-//# sourceMappingURL=Desktop_LingoMate_0ab1ad07._.js.map
+//# sourceMappingURL=Desktop_LingoMate_34a9294d._.js.map

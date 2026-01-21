@@ -370,6 +370,10 @@
     position: fixed;
   }
 
+  .relative {
+    position: relative;
+  }
+
   .right-6 {
     right: calc(var(--spacing) * 6);
   }
