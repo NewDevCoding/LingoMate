@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
+import ChatWindow from '@/features/reader/ChatWindow';
+import { SidebarProvider, useSidebar } from './SidebarContext';
 
 const styles = {
   Screen: {
@@ -10,6 +12,7 @@ const styles = {
     width: '100%',
     display: 'flex',
     flexDirection: 'row' as const,
+    overflowX: 'hidden' as const,
   } as React.CSSProperties,
   
   SidebarWrapper: {
@@ -21,20 +24,77 @@ const styles = {
     flex: 1,
     display: 'flex',
     flexDirection: 'column' as const,
+    overflowX: 'hidden' as const,
+    minWidth: 0, // Prevents flex items from overflowing
   } as React.CSSProperties,
 };
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+const chatBubbleStyles = {
+  ChatBubble: {
+    position: 'fixed' as const,
+    bottom: '24px',
+    right: '24px',
+    width: '56px',
+    height: '56px',
+    backgroundColor: '#8b5cf6',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
+    transition: 'transform 0.2s, box-shadow 0.2s',
+    zIndex: 1001,
+  } as React.CSSProperties,
+};
+
+function AppLayoutContent({ children }: { children: React.ReactNode }) {
+  const { isCollapsed, setIsCollapsed } = useSidebar();
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   return (
-    <div style={styles.Screen}>
-      <div style={styles.SidebarWrapper}>
-        <Sidebar isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} />
+    <>
+      <div style={styles.Screen}>
+        <div style={styles.SidebarWrapper}>
+          <Sidebar isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} />
+        </div>
+        <div style={styles.MainContent}>
+          {children}
+        </div>
       </div>
-      <div style={styles.MainContent}>
-        {children}
+
+      <div
+        style={chatBubbleStyles.ChatBubble}
+        onClick={() => setIsChatOpen(!isChatOpen)}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.1)';
+          e.currentTarget.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.5)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
+        }}
+      >
+        {isChatOpen ? (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+        )}
       </div>
-    </div>
+
+      <ChatWindow isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+    </>
+  );
+}
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <SidebarProvider>
+      <AppLayoutContent>{children}</AppLayoutContent>
+    </SidebarProvider>
   );
 }

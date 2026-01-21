@@ -2,11 +2,15 @@
 
 html {
   @apply bg-white;
+  overflow-x: hidden;
 }
 
 body {
   @apply bg-white text-gray-900;
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
 }
 

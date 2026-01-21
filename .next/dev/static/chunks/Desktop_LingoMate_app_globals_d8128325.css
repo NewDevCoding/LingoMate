@@ -68,8 +68,6 @@
     --text-xs--line-height: calc(1 / .75);
     --text-sm: .875rem;
     --text-sm--line-height: calc(1.25 / .875);
-    --text-base: 1rem;
-    --text-base--line-height: calc(1.5 / 1);
     --text-lg: 1.125rem;
     --text-lg--line-height: calc(1.75 / 1.125);
     --text-xl: 1.25rem;
@@ -369,6 +367,10 @@
 @layer components;
 
 @layer utilities {
+  .collapse {
+    visibility: collapse;
+  }
+
   .absolute {
     position: absolute;
   }
@@ -429,10 +431,6 @@
 
   .m-4 {
     margin: calc(var(--spacing) * 4);
-  }
-
-  .m-6 {
-    margin: calc(var(--spacing) * 6);
   }
 
   .mt-2 {
@@ -832,11 +830,6 @@
     line-height: var(--tw-leading, var(--text-2xl--line-height));
   }
 
-  .text-base {
-    font-size: var(--text-base);
-    line-height: var(--tw-leading, var(--text-base--line-height));
-  }
-
   .text-lg {
     font-size: var(--text-lg);
     line-height: var(--tw-leading, var(--text-lg--line-height));
@@ -923,11 +916,6 @@
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
 
-  .shadow-md {
-    --tw-shadow: 0 4px 6px -1px var(--tw-shadow-color, #0000001a), 0 2px 4px -2px var(--tw-shadow-color, #0000001a);
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-  }
-
   .outline {
     outline-style: var(--tw-outline-style);
     outline-width: 1px;
@@ -998,13 +986,17 @@
 
 html {
   background-color: var(--color-white);
+  overflow-x: hidden;
 }
 
 body {
   background-color: var(--color-white);
   color: var(--color-gray-900);
+  width: 100%;
+  max-width: 100vw;
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
 }
 
 @property --tw-rotate-x {

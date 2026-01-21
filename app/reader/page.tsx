@@ -1,18 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import ArticleRow from '@/features/reader/ArticleRow';
-import ChatWindow from '@/features/reader/ChatWindow';
 import { mockArticles } from '@/features/reader/article.service';
 import { Article } from '@/types/article';
+import { useSidebar } from '@/components/SidebarContext';
 
 const styles = {
-  PageContainer: {
+  PageContainer: (isCollapsed: boolean) => ({
     backgroundColor: '#161616',
     minHeight: '100vh',
     padding: '32px',
     paddingTop: '48px',
-  } as React.CSSProperties,
+    maxWidth: '100%',
+    width: '100%',
+    margin: '0 auto',
+    boxSizing: 'border-box' as const,
+    overflowX: 'hidden' as const,
+    transition: 'padding 0.3s ease',
+  } as React.CSSProperties),
 
   TopBar: {
     display: 'flex',
@@ -67,28 +73,11 @@ const styles = {
     display: 'flex',
     flexDirection: 'column' as const,
   } as React.CSSProperties,
-
-  ChatBubble: {
-    position: 'fixed' as const,
-    bottom: '24px',
-    right: '24px',
-    width: '56px',
-    height: '56px',
-    backgroundColor: '#8b5cf6',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
-    transition: 'transform 0.2s, box-shadow 0.2s',
-    zIndex: 1001,
-  } as React.CSSProperties,
 };
 
 export default function ReaderPage() {
-  const [isChatOpen, setIsChatOpen] = useState(false);
-
+  const { isCollapsed } = useSidebar();
+  
   // Split articles into two rows (first 6, then rest)
   const firstRowArticles = mockArticles.slice(0, 6);
   const secondRowArticles = mockArticles.slice(6);
@@ -99,8 +88,7 @@ export default function ReaderPage() {
   };
 
   return (
-    <>
-      <div style={styles.PageContainer}>
+    <div style={styles.PageContainer(isCollapsed)}>
         <div style={styles.TopBar}>
           <div style={styles.SearchContainer}>
             <svg
@@ -159,32 +147,6 @@ export default function ReaderPage() {
             onArticleClick={handleArticleClick}
           />
         </div>
-
-        <div
-          style={styles.ChatBubble}
-          onClick={() => setIsChatOpen(!isChatOpen)}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.1)';
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.5)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.4)';
-          }}
-        >
-          {isChatOpen ? (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-          )}
-        </div>
       </div>
-
-      <ChatWindow isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
-    </>
   );
 }

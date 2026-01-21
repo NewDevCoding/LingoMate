@@ -20,6 +20,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: '16px',
+    paddingLeft: '24px',
     paddingRight: '24px',
   } as React.CSSProperties,
 
@@ -47,6 +48,7 @@ const styles = {
     gap: '16px',
     overflowX: 'auto' as const,
     overflowY: 'hidden' as const,
+    paddingLeft: '24px',
     paddingRight: '24px',
     scrollbarWidth: 'thin' as const,
     scrollbarColor: '#313131 transparent',
