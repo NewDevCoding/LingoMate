@@ -2,18 +2,10 @@
 
 import React, { useState } from 'react';
 import InteractiveText from './InteractiveText';
-
-interface Article {
-  id: string;
-  title: string;
-  source: string;
-  thumbnail?: string;
-  content: string;
-  progress: number;
-}
+import { Article } from '@/types/article';
 
 interface ReaderContentProps {
-  article: Article;
+  article: Article & { source: string; thumbnail?: string; progress: number };
   selectedWord: string | null;
   onWordSelect: (word: string | null) => void;
 }
@@ -84,6 +76,7 @@ const styles = {
     position: 'relative' as const,
     overflow: 'hidden' as const,
     minHeight: 0, // Allows flex child to shrink
+    height: '100%', // Ensure full height for absolute positioning
   } as React.CSSProperties,
 
   Footer: {
@@ -125,11 +118,13 @@ export default function ReaderContent({ article, selectedWord, onWordSelect }: R
       </div>
 
       <div style={styles.ContentArea}>
-        <InteractiveText
-          text={article.content}
-          selectedWord={selectedWord}
-          onWordClick={onWordSelect}
-        />
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+          <InteractiveText
+            text={article.content}
+            selectedWord={selectedWord}
+            onWordClick={onWordSelect}
+          />
+        </div>
       </div>
 
       <div style={styles.Footer}>

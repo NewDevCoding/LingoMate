@@ -10,12 +10,13 @@ interface InteractiveTextProps {
 
 const styles = {
   Wrapper: {
-    display: 'flex',
-    alignItems: 'center',
     width: '100%',
     maxWidth: '800px',
     margin: '0 auto',
     position: 'relative' as const,
+    height: '100%',
+    paddingLeft: '64px',
+    paddingRight: '64px',
   } as React.CSSProperties,
 
   Container: {
@@ -50,6 +51,18 @@ const styles = {
     justifyContent: 'center',
     transition: 'all 0.2s',
     flexShrink: 0,
+    position: 'absolute' as const,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    zIndex: 10,
+  } as React.CSSProperties,
+
+  ChevronLeft: {
+    left: '-16px',
+  } as React.CSSProperties,
+
+  ChevronRight: {
+    right: '-16px',
   } as React.CSSProperties,
 
   ChevronButtonDisabled: {
@@ -75,8 +88,9 @@ const styles = {
   } as React.CSSProperties,
 };
 
-// Approximate words per page (adjust based on font size and container)
-const WORDS_PER_PAGE = 80;
+// Approximate words per page - set high to display larger paragraphs
+// This creates fewer pages with more content per page
+const WORDS_PER_PAGE = 300;
 
 export default function InteractiveText({ text, selectedWord, onWordClick }: InteractiveTextProps) {
   const [currentPage, setCurrentPage] = useState(0);
@@ -146,6 +160,7 @@ export default function InteractiveText({ text, selectedWord, onWordClick }: Int
       <button
         style={{
           ...styles.ChevronButton,
+          ...styles.ChevronLeft,
           ...(!hasPrevious ? styles.ChevronButtonDisabled : {}),
         }}
         onClick={handlePrevious}
@@ -173,8 +188,6 @@ export default function InteractiveText({ text, selectedWord, onWordClick }: Int
           {currentPageWords.map((word, index) => {
             const cleanWord = word.replace(/[.,!?;:]/g, '').toLowerCase();
             const isSelected = selectedWord === cleanWord;
-            // Mock: highlight some words (consistent per word)
-            const isHighlighted = cleanWord.length > 0 && (cleanWord.charCodeAt(0) % 3 === 0);
 
             if (word.trim() === '') {
               return <span key={index}>{word}</span>;
@@ -185,16 +198,16 @@ export default function InteractiveText({ text, selectedWord, onWordClick }: Int
                 key={index}
                 style={{
                   ...styles.Word,
-                  ...(isSelected ? styles.WordSelected : isHighlighted ? styles.WordHighlighted : {}),
+                  ...(isSelected ? styles.WordSelected : {}),
                 }}
                 onClick={() => handleWordClick(word)}
                 onMouseEnter={(e) => {
-                  if (!isSelected && !isHighlighted) {
+                  if (!isSelected) {
                     e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (!isSelected && !isHighlighted) {
+                  if (!isSelected) {
                     e.currentTarget.style.backgroundColor = 'transparent';
                   }
                 }}
@@ -209,6 +222,7 @@ export default function InteractiveText({ text, selectedWord, onWordClick }: Int
       <button
         style={{
           ...styles.ChevronButton,
+          ...styles.ChevronRight,
           ...(!hasNext ? styles.ChevronButtonDisabled : {}),
         }}
         onClick={handleNext}

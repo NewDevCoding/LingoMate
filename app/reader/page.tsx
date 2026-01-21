@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ArticleRow from '@/features/reader/ArticleRow';
-import { mockArticles } from '@/features/reader/article.service';
+import { getArticles, searchArticles } from '@/features/reader/article.service';
 import { Article } from '@/types/article';
 import { useSidebar } from '@/components/SidebarContext';
 
@@ -79,14 +79,40 @@ const styles = {
 export default function ReaderPage() {
   const { isCollapsed } = useSidebar();
   const router = useRouter();
-  
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    async function loadArticles() {
+      setIsLoading(true);
+      try {
+        const fetchedArticles = searchQuery
+          ? await searchArticles(searchQuery)
+          : await getArticles();
+        setArticles(fetchedArticles);
+      } catch (error) {
+        console.error('Error loading articles:', error);
+        setArticles([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadArticles();
+  }, [searchQuery]);
+
   // Split articles into two rows (first 6, then rest)
-  const firstRowArticles = mockArticles.slice(0, 6);
-  const secondRowArticles = mockArticles.slice(6);
+  const firstRowArticles = articles.slice(0, 6);
+  const secondRowArticles = articles.slice(6);
 
   const handleArticleClick = (article: Article) => {
     // Navigate to interactive reader page
     router.push(`/reader/${article.id}`);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
   };
 
   return (
@@ -109,6 +135,8 @@ export default function ReaderPage() {
               type="text"
               placeholder="Search Library"
               style={styles.SearchInput}
+              value={searchQuery}
+              onChange={handleSearchChange}
               onFocus={(e) => {
                 e.currentTarget.style.borderColor = '#26c541';
               }}
@@ -138,16 +166,32 @@ export default function ReaderPage() {
         </div>
 
         <div style={styles.ContentArea}>
-          <ArticleRow
-            title="Continue Learning"
-            articles={firstRowArticles}
-            onArticleClick={handleArticleClick}
-          />
-          <ArticleRow
-            title="Your Library"
-            articles={secondRowArticles}
-            onArticleClick={handleArticleClick}
-          />
+          {isLoading ? (
+            <div style={{ color: '#ffffff', textAlign: 'center', padding: '40px' }}>
+              Loading articles...
+            </div>
+          ) : articles.length === 0 ? (
+            <div style={{ color: '#a0a0a0', textAlign: 'center', padding: '40px' }}>
+              No articles found
+            </div>
+          ) : (
+            <>
+              {firstRowArticles.length > 0 && (
+                <ArticleRow
+                  title="Continue Learning"
+                  articles={firstRowArticles}
+                  onArticleClick={handleArticleClick}
+                />
+              )}
+              {secondRowArticles.length > 0 && (
+                <ArticleRow
+                  title="Your Library"
+                  articles={secondRowArticles}
+                  onArticleClick={handleArticleClick}
+                />
+              )}
+            </>
+          )}
         </div>
       </div>
   );

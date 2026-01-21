@@ -23,6 +23,16 @@ const styles = {
   Thumbnail: {
     width: '100%',
     height: '160px',
+    backgroundColor: '#262626',
+    backgroundSize: 'cover' as const,
+    backgroundPosition: 'center' as const,
+    backgroundRepeat: 'no-repeat' as const,
+    objectFit: 'cover' as const,
+  } as React.CSSProperties,
+
+  ThumbnailPlaceholder: {
+    width: '100%',
+    height: '160px',
     backgroundColor: '#d4e4a0',
     backgroundImage: `
       radial-gradient(circle at 20% 30%, #f5f8e8 2px, transparent 2px),
@@ -103,6 +113,8 @@ const styles = {
 };
 
 export default function ArticleCard({ article, onClick }: ArticleCardProps) {
+  const hasImage = article.image && article.image.trim() !== '';
+  
   return (
     <div
       style={styles.Card}
@@ -116,19 +128,30 @@ export default function ArticleCard({ article, onClick }: ArticleCardProps) {
         e.currentTarget.style.boxShadow = 'none';
       }}
     >
-      <div style={styles.Thumbnail} />
+      {hasImage ? (
+        <div
+          style={{
+            ...styles.Thumbnail,
+            backgroundImage: `url(${article.image})`,
+          }}
+        />
+      ) : (
+        <div style={styles.ThumbnailPlaceholder} />
+      )}
       <div style={styles.Content}>
         <div style={styles.Title}>{article.title}</div>
         <div style={styles.MetaRow}>
           {article.hasNotification && <div style={styles.NotificationDot} />}
-          <span style={styles.ProgressBadge}>
-            {article.progress}% New Words
-            {article.difficulty && ` ${article.difficulty}`}
-          </span>
+          {article.progress !== undefined && (
+            <span style={styles.ProgressBadge}>
+              {article.progress}% New Words
+              {article.difficulty && ` ${article.difficulty}`}
+            </span>
+          )}
           {article.duration && <span style={styles.Duration}>{article.duration}</span>}
         </div>
         <div style={styles.MetaRow}>
-          <span style={styles.Category}>{article.category}</span>
+          {article.category && <span style={styles.Category}>{article.category}</span>}
           {article.views !== undefined && (
             <div style={styles.ViewsContainer}>
               <span>{article.views}</span>
