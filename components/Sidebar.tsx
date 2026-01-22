@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
+  isFixed?: boolean;
 }
 
 const styles = {
@@ -190,7 +191,7 @@ const styles = {
   } as React.CSSProperties),
 };
 
-const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
+const Sidebar = ({ isCollapsed, onToggle, isFixed = false }: SidebarProps) => {
   const pathname = usePathname();
   
   const navItems = [
@@ -200,7 +201,15 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   ];
 
   return (
-    <div style={styles.SidebarContainer(isCollapsed)}>
+    <div style={{
+      ...styles.SidebarContainer(isCollapsed),
+      ...(isFixed ? {
+        position: 'fixed' as const,
+        top: 0,
+        left: 0,
+        zIndex: 999,
+      } : {})
+    }}>
       {/* Header with Logo and Toggle */}
       <div style={styles.Header(isCollapsed)}>
         {!isCollapsed && <div style={styles.Logo(isCollapsed)}>LingoMate</div>}

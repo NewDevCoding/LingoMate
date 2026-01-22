@@ -120,7 +120,7 @@ const styles = {
     flexDirection: 'column' as const,
     gap: '12px',
     margin: '0',
-    marginTop: '-1px',
+    marginTop: '0',
   } as React.CSSProperties,
 
   VocabularyList: {
@@ -181,6 +181,7 @@ const styles = {
     textDecoration: 'underline',
     cursor: 'pointer',
     lineHeight: '1.5',
+    fontWeight: 500,
   } as React.CSSProperties,
 
   StatusCell: {
@@ -364,58 +365,57 @@ export default function VocabularyPage() {
         </button>
       </div>
 
-      <div style={styles.TopBar}>
-        <div style={styles.TabsContainer}>
-          <button
-            style={styles.Tab(activeTab === 'all')}
-            onClick={() => handleTabClick('all')}
-            onMouseEnter={(e) => {
-              if (activeTab !== 'all') {
-                e.currentTarget.style.backgroundColor = '#262626';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeTab !== 'all') {
-                e.currentTarget.style.backgroundColor = '#1f1f1f';
-              }
-            }}
-          >
-            All
-          </button>
-          <button
-            style={styles.Tab(activeTab === 'phrases')}
-            onClick={() => handleTabClick('phrases')}
-            onMouseEnter={(e) => {
-              if (activeTab !== 'phrases') {
-                e.currentTarget.style.backgroundColor = '#262626';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeTab !== 'phrases') {
-                e.currentTarget.style.backgroundColor = '#1f1f1f';
-              }
-            }}
-          >
-            Phrases
-          </button>
-          <button
-            style={styles.Tab(activeTab === 'due')}
-            onClick={() => handleTabClick('due')}
-            onMouseEnter={(e) => {
-              if (activeTab !== 'due') {
-                e.currentTarget.style.backgroundColor = '#262626';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeTab !== 'due') {
-                e.currentTarget.style.backgroundColor = '#1f1f1f';
-              }
-            }}
-          >
-            Due for review
-          </button>
-        </div>
-      </div><div style={styles.MainContainer}>
+      <div style={styles.TabsContainer}>
+        <button
+          style={styles.Tab(activeTab === 'all')}
+          onClick={() => handleTabClick('all')}
+          onMouseEnter={(e) => {
+            if (activeTab !== 'all') {
+              e.currentTarget.style.backgroundColor = '#262626';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeTab !== 'all') {
+              e.currentTarget.style.backgroundColor = '#1f1f1f';
+            }
+          }}
+        >
+          All
+        </button>
+        <button
+          style={styles.Tab(activeTab === 'phrases')}
+          onClick={() => handleTabClick('phrases')}
+          onMouseEnter={(e) => {
+            if (activeTab !== 'phrases') {
+              e.currentTarget.style.backgroundColor = '#262626';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeTab !== 'phrases') {
+              e.currentTarget.style.backgroundColor = '#1f1f1f';
+            }
+          }}
+        >
+          Phrases
+        </button>
+        <button
+          style={styles.Tab(activeTab === 'due')}
+          onClick={() => handleTabClick('due')}
+          onMouseEnter={(e) => {
+            if (activeTab !== 'due') {
+              e.currentTarget.style.backgroundColor = '#262626';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeTab !== 'due') {
+              e.currentTarget.style.backgroundColor = '#1f1f1f';
+            }
+          }}
+        >
+          Due for review
+        </button>
+      </div>
+      <div style={styles.MainContainer}>
         <div style={styles.TableHeader}>
           <div style={styles.TableHeaderCell}>Term</div>
           <div style={styles.TableHeaderCell}>Meaning</div>

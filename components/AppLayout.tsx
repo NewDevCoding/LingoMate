@@ -30,6 +30,17 @@ const styles = {
     minWidth: 0, // Prevents flex items from overflowing
     paddingTop: '100px', // Accommodate top header
   } as React.CSSProperties,
+
+  MainContentWithFixedSidebar: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    overflowX: 'hidden' as const,
+    minWidth: 0,
+    paddingTop: '100px',
+    marginLeft: '279px', // Sidebar width when expanded
+    transition: 'margin-left 0.3s ease',
+  } as React.CSSProperties,
 };
 
 const chatBubbleStyles = {
@@ -54,15 +65,27 @@ const chatBubbleStyles = {
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed, setIsCollapsed } = useSidebar();
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const pathname = usePathname();
+  
+  // Pages where sidebar should be fixed
+  const fixedSidebarPages = ['/reader', '/vocabulary'];
+  const isFixedSidebar = fixedSidebarPages.some(page => pathname?.startsWith(page));
 
   return (
     <>
       <TopHeader />
       <div style={styles.Screen}>
         <div style={styles.SidebarWrapper}>
-          <Sidebar isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} />
+          <Sidebar 
+            isCollapsed={isCollapsed} 
+            onToggle={() => setIsCollapsed(!isCollapsed)}
+            isFixed={isFixedSidebar}
+          />
         </div>
-        <div style={styles.MainContent}>
+        <div style={isFixedSidebar ? {
+          ...styles.MainContentWithFixedSidebar,
+          marginLeft: isCollapsed ? '80px' : '279px',
+        } : styles.MainContent}>
           {children}
         </div>
       </div>
