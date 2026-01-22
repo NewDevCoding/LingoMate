@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import InteractiveText from './InteractiveText';
 import { Article } from '@/types/article';
 
@@ -40,6 +41,21 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '16px',
+  } as React.CSSProperties,
+
+  BackButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '40px',
+    height: '40px',
+    borderRadius: '8px',
+    backgroundColor: '#262626',
+    border: '1px solid #313131',
+    color: '#ffffff',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    flexShrink: 0,
   } as React.CSSProperties,
 
   Thumbnail: {
@@ -101,6 +117,12 @@ const styles = {
 };
 
 export default function ReaderContent({ article, selectedWord, onWordSelect }: ReaderContentProps) {
+  const router = useRouter();
+
+  const handleBack = () => {
+    router.push('/reader');
+  };
+
   return (
     <div style={styles.Container}>
       <div style={styles.ProgressBar}>
@@ -109,7 +131,35 @@ export default function ReaderContent({ article, selectedWord, onWordSelect }: R
 
       <div style={styles.Header}>
         <div style={styles.HeaderContent}>
-          <div style={styles.Thumbnail} />
+          <button
+            style={styles.BackButton}
+            onClick={handleBack}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#313131';
+              e.currentTarget.style.borderColor = '#404040';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#262626';
+              e.currentTarget.style.borderColor = '#313131';
+            }}
+            title="Back to Library"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          {article.thumbnail ? (
+            <img
+              src={article.thumbnail}
+              alt={article.title}
+              style={{
+                ...styles.Thumbnail,
+                objectFit: 'cover' as const,
+              }}
+            />
+          ) : (
+            <div style={styles.Thumbnail} />
+          )}
           <div style={styles.HeaderText}>
             <div style={styles.Title}>{article.title}</div>
             <div style={styles.Source}>{article.source}</div>
