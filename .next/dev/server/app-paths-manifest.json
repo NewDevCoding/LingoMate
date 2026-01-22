@@ -1,7 +1,6 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
   "/page": "app/page.js",
-  "/reader/[id]/page": "app/reader/[id]/page.js",
   "/reader/page": "app/reader/page.js",
-  "/tutors/page": "app/tutors/page.js",
   "/vocabulary/page": "app/vocabulary/page.js"
 }

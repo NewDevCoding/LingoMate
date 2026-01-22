@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import ChatWindow from '@/features/reader/ChatWindow';
+import TopHeader from './TopHeader';
 import { SidebarProvider, useSidebar } from './SidebarContext';
 
 const styles = {
@@ -27,6 +28,7 @@ const styles = {
     flexDirection: 'column' as const,
     overflowX: 'hidden' as const,
     minWidth: 0, // Prevents flex items from overflowing
+    paddingTop: '100px', // Accommodate top header
   } as React.CSSProperties,
 };
 
@@ -55,6 +57,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <TopHeader />
       <div style={styles.Screen}>
         <div style={styles.SidebarWrapper}>
           <Sidebar isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} />
