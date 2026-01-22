@@ -99,6 +99,16 @@ const styles = {
     pointerEvents: 'none' as const,
   } as React.CSSProperties,
 
+  MainContainer: {
+    backgroundColor: '#1f1f1f',
+    border: '1px solid #313131',
+    borderRadius: '12px',
+    padding: '16px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '12px',
+  } as React.CSSProperties,
+
   VocabularyList: {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -394,7 +404,7 @@ export default function VocabularyPage() {
         </div>
       </div>
 
-      <div>
+      <div style={styles.MainContainer}>
         <div style={styles.TableHeader}>
           <div style={styles.TableHeaderCell}>Term</div>
           <div style={styles.TableHeaderCell}>Meaning</div>
