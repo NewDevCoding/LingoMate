@@ -1,16 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSidebar } from '@/components/SidebarContext';
-
-interface VocabularyItem {
-  id: string;
-  term: string;
-  meaning: string;
-  status: number; // 0-4, where 0 = not learned, 1-4 = learning stages, 5 = mastered
-  isPhrase: boolean;
-  dueForReview: boolean;
-}
+import { getVocabulary, updateVocabularyComprehension, deleteVocabulary } from '@/features/vocabulary/vocabulary.service';
+import { Vocabulary } from '@/types/word';
 
 const styles = {
   PageContainer: (isCollapsed: boolean) => ({
@@ -234,47 +227,29 @@ const styles = {
   } as React.CSSProperties),
 };
 
-// Mock data - replace with actual data fetching
-const mockVocabulary: VocabularyItem[] = [
-  {
-    id: '1',
-    term: 'abandoné',
-    meaning: 'I left, abandoned',
-    status: 2,
-    isPhrase: false,
-    dueForReview: false,
-  },
-  {
-    id: '2',
-    term: 'Text',
-    meaning: '',
-    status: 2,
-    isPhrase: false,
-    dueForReview: true,
-  },
-  {
-    id: '3',
-    term: 'Text',
-    meaning: '',
-    status: 0,
-    isPhrase: false,
-    dueForReview: false,
-  },
-  {
-    id: '4',
-    term: 'Text',
-    meaning: '',
-    status: 0,
-    isPhrase: false,
-    dueForReview: false,
-  },
-];
-
 export default function VocabularyPage() {
   const { isCollapsed } = useSidebar();
   const [activeTab, setActiveTab] = useState<'all' | 'phrases' | 'due'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [vocabulary, setVocabulary] = useState<VocabularyItem[]>(mockVocabulary);
+  const [vocabulary, setVocabulary] = useState<Vocabulary[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load vocabulary from database
+  useEffect(() => {
+    async function loadVocabulary() {
+      setIsLoading(true);
+      try {
+        const vocab = await getVocabulary();
+        setVocabulary(vocab);
+      } catch (error) {
+        console.error('Error loading vocabulary:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadVocabulary();
+  }, []);
 
   const handleTabClick = (tab: 'all' | 'phrases' | 'due') => {
     setActiveTab(tab);
@@ -284,38 +259,71 @@ export default function VocabularyPage() {
     setSearchQuery(e.target.value);
   };
 
-  const handleStatusClick = (itemId: string, status: number) => {
+  const handleStatusClick = async (itemId: string, status: number) => {
+    // Optimistic update
     setVocabulary((prev) =>
       prev.map((item) =>
-        item.id === itemId ? { ...item, status } : item
+        item.id === itemId ? { ...item, comprehension: status } : item
       )
     );
+
+    // Update in database
+    try {
+      const updated = await updateVocabularyComprehension(itemId, status);
+      if (updated) {
+        setVocabulary((prev) =>
+          prev.map((item) =>
+            item.id === itemId ? updated : item
+          )
+        );
+      } else {
+        // Revert on error
+        const vocab = await getVocabulary();
+        setVocabulary(vocab);
+      }
+    } catch (error) {
+      console.error('Error updating vocabulary status:', error);
+      // Revert on error
+      const vocab = await getVocabulary();
+      setVocabulary(vocab);
+    }
   };
 
-  const handleDelete = (itemId: string) => {
+  const handleDelete = async (itemId: string) => {
+    // Optimistic update
+    const previousVocabulary = [...vocabulary];
     setVocabulary((prev) => prev.filter((item) => item.id !== itemId));
+
+    // Delete from database
+    try {
+      const success = await deleteVocabulary(itemId);
+      if (!success) {
+        // Revert on error
+        setVocabulary(previousVocabulary);
+      }
+    } catch (error) {
+      console.error('Error deleting vocabulary:', error);
+      // Revert on error
+      setVocabulary(previousVocabulary);
+    }
   };
 
-  const handleMaster = (itemId: string) => {
-    setVocabulary((prev) =>
-      prev.map((item) =>
-        item.id === itemId ? { ...item, status: 5 } : item
-      )
-    );
+  const handleMaster = async (itemId: string) => {
+    await handleStatusClick(itemId, 5);
   };
 
   // Filter vocabulary based on active tab and search
   const filteredVocabulary = vocabulary.filter((item) => {
-    // Tab filter
-    if (activeTab === 'phrases' && !item.isPhrase) return false;
-    if (activeTab === 'due' && !item.dueForReview) return false;
+    // Tab filter - for now, phrases and due are not implemented
+    // if (activeTab === 'phrases' && !item.isPhrase) return false;
+    // if (activeTab === 'due' && !item.dueForReview) return false;
 
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       return (
-        item.term.toLowerCase().includes(query) ||
-        item.meaning.toLowerCase().includes(query)
+        item.word.toLowerCase().includes(query) ||
+        item.translation.toLowerCase().includes(query)
       );
     }
 
@@ -422,7 +430,11 @@ export default function VocabularyPage() {
           <div style={styles.TableHeaderCellRight}>Status</div>
         </div>
         <div style={styles.VocabularyList}>
-          {filteredVocabulary.length === 0 ? (
+          {isLoading ? (
+            <div style={{ ...styles.VocabularyCard, textAlign: 'center', padding: '40px', gridTemplateColumns: '1fr' }}>
+              <div style={{ color: '#a0a0a0' }}>Loading vocabulary...</div>
+            </div>
+          ) : filteredVocabulary.length === 0 ? (
             <div style={{ ...styles.VocabularyCard, textAlign: 'center', padding: '40px', gridTemplateColumns: '1fr' }}>
               <div style={{ color: '#a0a0a0' }}>No vocabulary items found</div>
             </div>
@@ -440,8 +452,8 @@ export default function VocabularyPage() {
                   e.currentTarget.style.borderColor = '#313131';
                 }}
               >
-                <div style={styles.TermCell}>{item.term}</div>
-                <div style={styles.TableCell}>{item.meaning || ''}</div>
+                <div style={styles.TermCell}>{item.word}</div>
+                <div style={styles.TableCell}>{item.translation || ''}</div>
                 <div style={styles.StatusCell}>
                   <button
                     style={styles.IconButton}
@@ -461,15 +473,15 @@ export default function VocabularyPage() {
                   {[1, 2, 3, 4].map((num) => (
                     <button
                       key={num}
-                      style={styles.NumberCircle(item.status === num)}
+                      style={styles.NumberCircle(item.comprehension === num)}
                       onClick={() => handleStatusClick(item.id, num)}
                       onMouseEnter={(e) => {
-                        if (item.status !== num) {
+                        if (item.comprehension !== num) {
                           e.currentTarget.style.backgroundColor = '#3a3a3a';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (item.status !== num) {
+                        if (item.comprehension !== num) {
                           e.currentTarget.style.backgroundColor = '#2a2a2a';
                         }
                       }}
@@ -478,15 +490,15 @@ export default function VocabularyPage() {
                     </button>
                   ))}
                   <button
-                    style={styles.CheckmarkButton(item.status === 5)}
+                    style={styles.CheckmarkButton(item.comprehension === 5)}
                     onClick={() => handleMaster(item.id)}
                     onMouseEnter={(e) => {
-                      if (item.status !== 5) {
+                      if (item.comprehension !== 5) {
                         e.currentTarget.style.color = '#26c541';
                       }
                     }}
                     onMouseLeave={(e) => {
-                      if (item.status !== 5) {
+                      if (item.comprehension !== 5) {
                         e.currentTarget.style.color = '#a0a0a0';
                       }
                     }}

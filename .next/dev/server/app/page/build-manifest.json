@@ -2,20 +2,20 @@
   "devFiles": [],
   "ampDevFiles": [],
   "polyfillFiles": [
-    "static/chunks/563a8_next_dist_build_polyfills_polyfill-nomodule.js"
+    "static/chunks/efd65_next_dist_build_polyfills_polyfill-nomodule.js"
   ],
   "lowPriorityFiles": [],
   "rootMainFiles": [
-    "static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_394aa8f8._.js",
-    "static/chunks/563a8_next_dist_compiled_react-dom_4180b6b0._.js",
-    "static/chunks/563a8_next_dist_compiled_react-server-dom-turbopack_d8f59747._.js",
-    "static/chunks/563a8_next_dist_compiled_next-devtools_index_e8d1c0f9.js",
-    "static/chunks/563a8_next_dist_compiled_108b37a1._.js",
-    "static/chunks/563a8_next_dist_client_3b5f4c26._.js",
-    "static/chunks/563a8_next_dist_8ab18f7a._.js",
-    "static/chunks/563a8_@swc_helpers_cjs_ae81a982._.js",
-    "static/chunks/Desktop_LingoMate_a0ff3932._.js",
-    "static/chunks/turbopack-Desktop_LingoMate_ee958dfc._.js"
+    "static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_c9a24a13._.js",
+    "static/chunks/efd65_next_dist_compiled_react-dom_2e83db40._.js",
+    "static/chunks/efd65_next_dist_compiled_react-server-dom-turbopack_c208aa94._.js",
+    "static/chunks/efd65_next_dist_compiled_next-devtools_index_92202746.js",
+    "static/chunks/efd65_next_dist_compiled_c8c0cdf3._.js",
+    "static/chunks/efd65_next_dist_client_f6701f1b._.js",
+    "static/chunks/efd65_next_dist_9d073543._.js",
+    "static/chunks/efd65_@swc_helpers_cjs_5649816f._.js",
+    "static/chunks/LingoMate_a0ff3932._.js",
+    "static/chunks/turbopack-LingoMate_bd80fb43._.js"
   ],
   "pages": {},
   "ampFirstPages": []

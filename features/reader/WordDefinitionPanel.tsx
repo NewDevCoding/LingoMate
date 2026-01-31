@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getVocabularyByWord, upsertVocabulary } from '@/features/vocabulary/vocabulary.service';
+import { Vocabulary } from '@/types/word';
 
 interface WordDefinitionPanelProps {
   word: string | null;
@@ -189,6 +191,90 @@ const mockDefinitions: Record<string, { types: string[]; meanings: string[] }> =
 
 export default function WordDefinitionPanel({ word, onClose }: WordDefinitionPanelProps) {
   const [selectedRating, setSelectedRating] = useState<number | 'check' | null>(1);
+  const [vocabulary, setVocabulary] = useState<Vocabulary | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [translation, setTranslation] = useState('');
+
+  // Load vocabulary when word changes
+  useEffect(() => {
+    if (!word) {
+      setVocabulary(null);
+      setSelectedRating(1);
+      setTranslation('');
+      return;
+    }
+
+    async function loadVocabulary() {
+      setIsLoading(true);
+      try {
+        const vocab = await getVocabularyByWord(word);
+        if (vocab) {
+          setVocabulary(vocab);
+          setSelectedRating(vocab.comprehension === 5 ? 'check' : vocab.comprehension);
+          setTranslation(vocab.translation);
+        } else {
+          setVocabulary(null);
+          setSelectedRating(1);
+          setTranslation('');
+        }
+      } catch (error) {
+        console.error('Error loading vocabulary:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadVocabulary();
+  }, [word]);
+
+  const definition = word ? (mockDefinitions[word] || {
+    types: ['unknown'],
+    meanings: ['No definition available'],
+  }) : null;
+
+  const handleRatingClick = async (rating: number | 'check') => {
+    if (!word) return;
+
+    const comprehension = rating === 'check' ? 5 : rating;
+    
+    // Optimistic update
+    setSelectedRating(rating);
+    
+    // Update in database
+    try {
+      const updated = await upsertVocabulary(word, comprehension, translation || undefined);
+      if (updated) {
+        setVocabulary(updated);
+        setTranslation(updated.translation);
+      }
+    } catch (error) {
+      console.error('Error updating vocabulary:', error);
+      // Revert optimistic update on error
+      if (vocabulary) {
+        setSelectedRating(vocabulary.comprehension === 5 ? 'check' : vocabulary.comprehension);
+      } else {
+        setSelectedRating(1);
+      }
+    }
+  };
+
+  const handleTranslationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTranslation(e.target.value);
+  };
+
+  const handleTranslationBlur = async () => {
+    if (!word || !translation.trim()) return;
+
+    const comprehension = selectedRating === 'check' ? 5 : (selectedRating || 1);
+    try {
+      const updated = await upsertVocabulary(word, comprehension, translation);
+      if (updated) {
+        setVocabulary(updated);
+      }
+    } catch (error) {
+      console.error('Error updating translation:', error);
+    }
+  };
 
   if (!word) {
     return (
@@ -200,14 +286,15 @@ export default function WordDefinitionPanel({ word, onClose }: WordDefinitionPan
     );
   }
 
-  const definition = mockDefinitions[word] || {
-    types: ['unknown'],
-    meanings: ['No definition available'],
-  };
-
-  const handleRatingClick = (rating: number | 'check') => {
-    setSelectedRating(rating);
-  };
+  if (isLoading) {
+    return (
+      <div style={styles.Container}>
+        <div style={styles.EmptyState}>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.Container}>
@@ -233,6 +320,9 @@ export default function WordDefinitionPanel({ word, onClose }: WordDefinitionPan
         type="text"
         placeholder="Type a new meaning here"
         style={styles.InputField}
+        value={translation}
+        onChange={handleTranslationChange}
+        onBlur={handleTranslationBlur}
       />
 
       <div>
@@ -248,12 +338,6 @@ export default function WordDefinitionPanel({ word, onClose }: WordDefinitionPan
       </div>
 
       <div style={styles.Footer}>
-        <button style={styles.FooterButton} title="Delete">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-          </svg>
-        </button>
         <button
           style={{
             ...styles.FooterButton,
