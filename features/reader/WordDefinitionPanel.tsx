@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { getVocabularyByWord, upsertVocabulary } from '@/features/vocabulary/vocabulary.service';
 import { Vocabulary } from '@/types/word';
+import { getTranslation } from '@/lib/translation/translation.service';
 
 interface WordDefinitionPanelProps {
   word: string | null;
@@ -193,9 +194,10 @@ export default function WordDefinitionPanel({ word, onClose }: WordDefinitionPan
   const [selectedRating, setSelectedRating] = useState<number | 'check' | null>(1);
   const [vocabulary, setVocabulary] = useState<Vocabulary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [translation, setTranslation] = useState('');
 
-  // Load vocabulary when word changes
+  // Load vocabulary and translation when word changes
   useEffect(() => {
     if (!word) {
       setVocabulary(null);
@@ -204,18 +206,38 @@ export default function WordDefinitionPanel({ word, onClose }: WordDefinitionPan
       return;
     }
 
-    async function loadVocabulary() {
+    async function loadVocabularyAndTranslation() {
       setIsLoading(true);
       try {
+        // First, try to load existing vocabulary entry
         const vocab = await getVocabularyByWord(word);
         if (vocab) {
           setVocabulary(vocab);
           setSelectedRating(vocab.comprehension === 5 ? 'check' : vocab.comprehension);
           setTranslation(vocab.translation);
         } else {
+          // No vocabulary entry found, fetch translation automatically
           setVocabulary(null);
           setSelectedRating(1);
           setTranslation('');
+          
+          // Fetch translation from API
+          setIsTranslating(true);
+          try {
+            const translationResult = await getTranslation(word, {
+              sourceLang: 'es', // TODO: Get from article or user settings
+              targetLang: 'en',
+            });
+            
+            if (translationResult && translationResult.translation) {
+              setTranslation(translationResult.translation);
+            }
+          } catch (error) {
+            console.error('Error fetching translation:', error);
+            // Translation failed, but don't block UI - user can still enter manually
+          } finally {
+            setIsTranslating(false);
+          }
         }
       } catch (error) {
         console.error('Error loading vocabulary:', error);
@@ -224,7 +246,7 @@ export default function WordDefinitionPanel({ word, onClose }: WordDefinitionPan
       }
     }
 
-    loadVocabulary();
+    loadVocabularyAndTranslation();
   }, [word]);
 
   const definition = word ? (mockDefinitions[word] || {
@@ -296,6 +318,11 @@ export default function WordDefinitionPanel({ word, onClose }: WordDefinitionPan
     );
   }
 
+  // Show translation loading indicator in input field
+  const translationPlaceholder = isTranslating 
+    ? 'Translating...' 
+    : 'Type a new meaning here';
+
   return (
     <div style={styles.Container}>
       <div style={styles.Header}>
@@ -318,11 +345,12 @@ export default function WordDefinitionPanel({ word, onClose }: WordDefinitionPan
 
       <input
         type="text"
-        placeholder="Type a new meaning here"
+        placeholder={translationPlaceholder}
         style={styles.InputField}
         value={translation}
         onChange={handleTranslationChange}
         onBlur={handleTranslationBlur}
+        disabled={isTranslating}
       />
 
       <div>
