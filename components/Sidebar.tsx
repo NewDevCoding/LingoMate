@@ -198,6 +198,7 @@ const Sidebar = ({ isCollapsed, onToggle, isFixed = false }: SidebarProps) => {
     { name: 'Dashboard', href: '/' },
     { name: 'Reader', href: '/reader' },
     { name: 'Vocabulary', href: '/vocabulary' },
+    { name: 'Roleplay', href: '/speak/roleplay' },
   ];
 
   return (
@@ -265,6 +266,9 @@ const Sidebar = ({ isCollapsed, onToggle, isFixed = false }: SidebarProps) => {
                 )}
                 {item.name === 'Vocabulary' && (
                   <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                )}
+                {item.name === 'Roleplay' && (
+                  <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 )}
               </svg>
               <span style={styles.NavText(isCollapsed)}>{item.name}</span>

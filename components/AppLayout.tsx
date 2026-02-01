@@ -68,7 +68,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
   // Pages where sidebar should be fixed
-  const fixedSidebarPages = ['/reader', '/vocabulary'];
+  const fixedSidebarPages = ['/reader', '/vocabulary', '/speak/roleplay'];
   const isFixedSidebar = fixedSidebarPages.some(page => pathname?.startsWith(page));
 
   return (
