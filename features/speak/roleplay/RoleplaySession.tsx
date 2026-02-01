@@ -22,6 +22,7 @@ const styles = {
     minWidth: 0, // Allows flex to shrink
     height: '100%',
     overflow: 'hidden' as const,
+    position: 'relative' as const,
   } as React.CSSProperties,
 
   TranslationPanel: {
@@ -194,6 +195,9 @@ const styles = {
     gap: '16px',
     width: '100%',
     minHeight: 0, // Important for flex scrolling
+    // Hide scrollbar but keep scrolling functionality
+    scrollbarWidth: 'none' as const, // Firefox
+    msOverflowStyle: 'none' as const, // IE and Edge
   } as React.CSSProperties,
 
   MessageWrapper: {
@@ -599,7 +603,14 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
   };
 
   return (
-    <div style={styles.Container}>
+    <>
+      <style>{`
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .messages-container::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+      <div style={styles.Container}>
       {/* Chat Section */}
       <div style={styles.ChatSection}>
         {/* Header */}
@@ -660,7 +671,7 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
       </div>
 
         {/* Messages */}
-        <div style={styles.MessagesContainer} ref={messagesContainerRef}>
+        <div style={styles.MessagesContainer} ref={messagesContainerRef} className="messages-container">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -880,5 +891,6 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
         </div>
       </div>
     </div>
+    </>
   );
 }

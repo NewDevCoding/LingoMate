@@ -1,9 +1,5 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
   "/api/roleplay/message/route": "app/api/roleplay/message/route.js",
-  "/api/roleplay/scenarios/route": "app/api/roleplay/scenarios/route.js",
   "/api/roleplay/suggestions/route": "app/api/roleplay/suggestions/route.js",
-  "/api/roleplay/translate/route": "app/api/roleplay/translate/route.js",
-  "/speak/roleplay/[id]/page": "app/speak/roleplay/[id]/page.js",
-  "/speak/roleplay/page": "app/speak/roleplay/page.js"
+  "/speak/roleplay/[id]/page": "app/speak/roleplay/[id]/page.js"
 }

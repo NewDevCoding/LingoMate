@@ -10,11 +10,11 @@ import { SidebarProvider, useSidebar } from './SidebarContext';
 const styles = {
   Screen: {
     backgroundColor: '#161616',
-    minHeight: '100vh',
+    height: '100vh', // Use fixed height instead of minHeight
     width: '100%',
     display: 'flex',
     flexDirection: 'row' as const,
-    overflowX: 'hidden' as const,
+    overflow: 'hidden' as const, // Prevent all scrolling at screen level
   } as React.CSSProperties,
   
   SidebarWrapper: {
@@ -26,20 +26,22 @@ const styles = {
     flex: 1,
     display: 'flex',
     flexDirection: 'column' as const,
-    overflowX: 'hidden' as const,
+    overflow: 'hidden' as const,
     minWidth: 0, // Prevents flex items from overflowing
     paddingTop: '100px', // Accommodate top header
+    height: '100vh', // Constrain height to viewport
   } as React.CSSProperties,
 
   MainContentWithFixedSidebar: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column' as const,
-    overflowX: 'hidden' as const,
+    overflow: 'hidden' as const,
     minWidth: 0,
     paddingTop: '100px',
     marginLeft: '279px', // Sidebar width when expanded
     transition: 'margin-left 0.3s ease',
+    height: '100vh', // Constrain height to viewport
   } as React.CSSProperties,
 };
 
