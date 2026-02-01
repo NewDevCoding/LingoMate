@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { RoleplayScenario, ChatMessage } from '@/types/conversation';
+import { AudioManager, BrowserTTSManager } from '@/lib/speech/audio.manager';
 
 const styles = {
   Container: {
@@ -249,6 +250,14 @@ const styles = {
     borderTop: '1px solid rgba(0, 0, 0, 0.1)',
   } as React.CSSProperties,
 
+  MessageActionsUser: {
+    display: 'flex',
+    gap: '8px',
+    marginTop: '8px',
+    paddingTop: '8px',
+    borderTop: '1px solid rgba(255, 255, 255, 0.2)',
+  } as React.CSSProperties,
+
   ActionButton: {
     background: 'transparent',
     border: '1px solid rgba(0, 0, 0, 0.2)',
@@ -257,6 +266,21 @@ const styles = {
     fontSize: '12px',
     fontWeight: 500,
     color: '#000000',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    transition: 'background-color 0.2s',
+  } as React.CSSProperties,
+
+  ActionButtonUser: {
+    background: 'transparent',
+    border: '1px solid rgba(255, 255, 255, 0.3)',
+    borderRadius: '8px',
+    padding: '6px 12px',
+    fontSize: '12px',
+    fontWeight: 500,
+    color: '#ffffff',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -380,8 +404,12 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
   const [translation, setTranslation] = useState<Translation | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [hasUserSentMessage, setHasUserSentMessage] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const audioManagerRef = useRef<AudioManager | null>(null);
+  const browserTTSRef = useRef<BrowserTTSManager | null>(null);
+  const messageAudioCacheRef = useRef<Map<string, string>>(new Map()); // Cache audio URLs by message ID
 
   const generateInitialSuggestions = useCallback(async (aiMessage: string) => {
     try {
@@ -414,6 +442,23 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
     }
   }, []);
 
+  // Initialize audio managers
+  useEffect(() => {
+    audioManagerRef.current = new AudioManager();
+    browserTTSRef.current = new BrowserTTSManager();
+
+    return () => {
+      // Cleanup on unmount
+      audioManagerRef.current?.cleanup();
+      browserTTSRef.current?.cleanup();
+      // Clean up cached audio URLs
+      messageAudioCacheRef.current.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+      messageAudioCacheRef.current.clear();
+    };
+  }, []);
+
   useEffect(() => {
     // Initialize with the scenario's initial message
     if (messages.length === 0 && scenario.initialMessage) {
@@ -427,6 +472,8 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
       setMessages([initialMessage]);
       // Generate initial suggested responses
       generateInitialSuggestions(scenario.initialMessage);
+      // Auto-play TTS for initial message
+      playMessageAudio(initialMessage);
     }
   }, [scenario, messages.length, generateInitialSuggestions]);
 
@@ -489,6 +536,9 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
       };
 
       setMessages([...updatedMessages, aiMessage]);
+      
+      // Auto-play TTS for the new AI message
+      playMessageAudio(aiMessage);
     } catch (error) {
       console.error('Error sending message:', error);
       // Show error message
@@ -530,6 +580,8 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
           conversationHistory: messages,
           aiMessage: lastAIMessage.content,
           count: 1,
+          scenarioId: scenario.id,
+          language: scenario.language,
         }),
       });
 
@@ -552,12 +604,95 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
     sendMessage(prompt);
   };
 
-  const handleReplay = () => {
-    // Reset to initial state
-    setMessages([]);
-    setInputValue('');
-    setTranslation(null);
-  };
+  /**
+   * Play audio for a message (TTS)
+   */
+  const playMessageAudio = useCallback(async (message: ChatMessage) => {
+    if (message.role !== 'assistant' || !message.content.trim()) {
+      return;
+    }
+
+    // Stop any currently playing audio
+    audioManagerRef.current?.stop();
+    browserTTSRef.current?.stop();
+    setIsPlayingAudio(true);
+
+    try {
+      // Check if we have cached audio for this message
+      const cachedUrl = messageAudioCacheRef.current.get(message.id);
+      
+      if (cachedUrl) {
+        // Use cached audio
+        await audioManagerRef.current?.playAudio(cachedUrl);
+        setIsPlayingAudio(false);
+        return;
+      }
+
+      // Fetch TTS audio from API
+      const response = await fetch('/api/speech/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: message.content,
+          language: scenario.language,
+          speakingRate: 1.0, // Normal speed
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // If browser TTS fallback is suggested
+        if (errorData.method === 'browser' && browserTTSRef.current) {
+          await browserTTSRef.current.speak(message.content, scenario.language);
+          setIsPlayingAudio(false);
+          return;
+        }
+        
+        throw new Error(errorData.error || 'Failed to generate audio');
+      }
+
+      // Check if response is JSON (browser TTS fallback)
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        const data = await response.json();
+        if (data.method === 'browser' && browserTTSRef.current) {
+          await browserTTSRef.current.speak(message.content, scenario.language);
+          setIsPlayingAudio(false);
+          return;
+        }
+      }
+
+      // Get audio blob
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      // Cache the audio URL
+      messageAudioCacheRef.current.set(message.id, audioUrl);
+      
+      // Play the audio
+      await audioManagerRef.current?.playAudio(audioUrl);
+    } catch (error) {
+      console.error('Error playing message audio:', error);
+      // Fallback to browser TTS if available
+      if (browserTTSRef.current) {
+        try {
+          await browserTTSRef.current.speak(message.content, scenario.language);
+        } catch (browserError) {
+          console.error('Browser TTS also failed:', browserError);
+        }
+      }
+    } finally {
+      setIsPlayingAudio(false);
+    }
+  }, [scenario.language]);
+
+  /**
+   * Handle replay button click - replay audio for a specific message
+   */
+  const handleReplay = useCallback((message: ChatMessage) => {
+    playMessageAudio(message);
+  }, [playMessageAudio]);
 
   const handleTranslate = async (message: ChatMessage) => {
     setIsTranslating(true);
@@ -702,9 +837,12 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
                   <div style={styles.MessageActions}>
                     <button
                       style={styles.ActionButton}
-                      onClick={handleReplay}
+                      onClick={() => handleReplay(message)}
+                      disabled={isPlayingAudio}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+                        if (!isPlayingAudio) {
+                          e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+                        }
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = 'transparent';
@@ -713,7 +851,7 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M3 12a9 9 0 019-9 9.75 9.75 0 016.5 2.5L21 8M3 12v4m0-4h4m13-4v4m0-4h-4" />
                       </svg>
-                      Replay
+                      {isPlayingAudio ? 'Playing...' : 'Replay'}
                     </button>
                     <button
                       style={styles.ActionButton}
@@ -722,6 +860,28 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
                       onMouseEnter={(e) => {
                         if (!isTranslating) {
                           e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 3v18M3 12h18" />
+                      </svg>
+                      {isTranslating ? 'Translating...' : 'Translate'}
+                    </button>
+                  </div>
+                )}
+                {message.role === 'user' && (
+                  <div style={styles.MessageActionsUser}>
+                    <button
+                      style={styles.ActionButtonUser}
+                      onClick={() => handleTranslate(message)}
+                      disabled={isTranslating}
+                      onMouseEnter={(e) => {
+                        if (!isTranslating) {
+                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
                         }
                       }}
                       onMouseLeave={(e) => {

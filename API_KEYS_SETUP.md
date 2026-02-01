@@ -55,6 +55,22 @@ GOOGLE_TRANSLATE_API_KEY=your-google-translate-api-key-here
 
 **Note:** Google Translate API has a free tier of 500,000 characters per month.
 
+### Google Text-to-Speech API Key (Optional - for TTS feature)
+
+1. In the same Google Cloud project, enable the **Cloud Text-to-Speech API**:
+   - Navigate to "APIs & Services" > "Library"
+   - Search for "Cloud Text-to-Speech API"
+   - Click "Enable"
+2. Use the same API key (or create a new one):
+   - If using the same key, add "Cloud Text-to-Speech API" to the API restrictions
+   - Or create a separate API key for TTS
+3. Paste it into `.env.local` as `GOOGLE_TTS_API_KEY`
+
+**Note:** 
+- Google TTS API has a free tier of 4 million characters per month
+- If not configured, the app will use browser's built-in TTS as fallback
+- See `GOOGLE_TTS_SETUP.md` for detailed setup instructions
+
 ## Troubleshooting
 
 ### Error: "OpenAI API key not configured"

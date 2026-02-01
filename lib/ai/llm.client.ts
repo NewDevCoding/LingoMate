@@ -53,13 +53,21 @@ class LLMClient {
    */
   async generateSuggestions(
     conversationHistory: ChatMessage[],
-    count: number = 3
+    count: number = 3,
+    options?: {
+      language?: string;
+      scenario?: {
+        title: string;
+        theme: string;
+        difficulty: string;
+      };
+    }
   ): Promise<string[]> {
     // For now, return mock suggestions
     // In production, this would call the LLM with a specific prompt for suggestions
     
     if (this.config.provider === 'openai') {
-      return this.callOpenAISuggestions(conversationHistory, count);
+      return this.callOpenAISuggestions(conversationHistory, count, options);
     }
     
     // Fallback mock suggestions
@@ -116,29 +124,55 @@ class LLMClient {
 
   private async callOpenAISuggestions(
     conversationHistory: ChatMessage[],
-    count: number
+    count: number,
+    options?: {
+      language?: string;
+      scenario?: {
+        title: string;
+        theme: string;
+        difficulty: string;
+      };
+    }
   ): Promise<string[]> {
     const apiKey = this.config.apiKey || process.env.OPENAI_API_KEY;
     
     if (!apiKey) {
       // Return mock suggestions if API key not configured
-      return [
-        'That sounds interesting!',
-        'I understand.',
-        'Tell me more.',
-      ];
+      const language = options?.language || 'es';
+      const mockSuggestions: Record<string, string[]> = {
+        'es': ['Eso suena interesante!', 'Entiendo.', 'Cuéntame más.'],
+        'en': ['That sounds interesting!', 'I understand.', 'Tell me more.'],
+        'fr': ['Cela semble intéressant!', 'Je comprends.', 'Dis-moi en plus.'],
+      };
+      return mockSuggestions[language] || mockSuggestions['es'];
     }
 
     const model = this.config.model || process.env.OPENAI_MODEL || 'gpt-4o-mini';
     const baseUrl = this.config.baseUrl || 'https://api.openai.com/v1';
+    const language = options?.language || 'es';
+    const languageName = language === 'es' ? 'Spanish' : language === 'fr' ? 'French' : 'English';
+
+    // Build scenario context if available
+    let scenarioContext = '';
+    if (options?.scenario) {
+      scenarioContext = `\nSCENARIO: ${options.scenario.title} (${options.scenario.theme})\nDIFFICULTY: ${options.scenario.difficulty}\n`;
+    }
 
     // Create a prompt specifically for generating response suggestions
-    const suggestionPrompt = `Based on the conversation history, generate exactly ${count} short, natural response suggestions (2-8 words each) that a language learner might use to continue this conversation. Return ONLY a JSON array of strings, no other text.
+    const suggestionPrompt = `You are helping a language learner practice ${languageName}. Based on the conversation history, generate exactly ${count} DIFFERENT, short, natural response suggestions (2-8 words each) in ${languageName} that a language learner might use to continue this conversation naturally.${scenarioContext}
+
+IMPORTANT:
+- All suggestions MUST be in ${languageName} (not English)
+- Each suggestion should be DIFFERENT from the others
+- Keep suggestions short and natural (2-8 words)
+- Make them appropriate for the conversation context
+- Vary the suggestions (don't repeat similar phrases)
 
 Conversation:
 ${conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n')}
 
-Return format: ["suggestion 1", "suggestion 2", "suggestion 3"]`;
+Return ONLY a JSON array of strings in ${languageName}, no other text.
+Format: ["suggestion 1", "suggestion 2", "suggestion 3"]`;
 
     try {
       const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -153,7 +187,7 @@ Return format: ["suggestion 1", "suggestion 2", "suggestion 3"]`;
             { role: 'system', content: 'You are a helpful assistant that generates short, natural conversation responses in JSON format.' },
             { role: 'user', content: suggestionPrompt },
           ],
-          temperature: 0.8,
+          temperature: 0.9, // Higher temperature for more variety in suggestions
           response_format: { type: 'json_object' },
         }),
       });

@@ -227,6 +227,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../../app/api/speech/tts/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/speech/tts">> = Specific
+  const handler = {} as typeof import("../../../app/api/speech/tts/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../../app/api/translation/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/translation">> = Specific

@@ -1,5 +1,7 @@
 {
   "/api/roleplay/message/route": "app/api/roleplay/message/route.js",
   "/api/roleplay/suggestions/route": "app/api/roleplay/suggestions/route.js",
+  "/api/roleplay/translate/route": "app/api/roleplay/translate/route.js",
+  "/api/speech/tts/route": "app/api/speech/tts/route.js",
   "/speak/roleplay/[id]/page": "app/speak/roleplay/[id]/page.js"
 }

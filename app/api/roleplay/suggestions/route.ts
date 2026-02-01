@@ -1,17 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { llmClient } from '@/lib/ai/llm.client';
+import { getScenarioById } from '@/features/speak/roleplay/roleplay.service';
 import type { ChatMessage } from '@/types/conversation';
 
 interface RequestBody {
   conversationHistory: ChatMessage[];
   aiMessage: string;
   count?: number;
+  scenarioId?: string;
+  language?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: RequestBody = await request.json();
-    const { conversationHistory, aiMessage, count = 3 } = body;
+    const { conversationHistory, aiMessage, count = 3, scenarioId, language = 'es' } = body;
+
+    // Get scenario context if available
+    let scenario = null;
+    if (scenarioId) {
+      scenario = await getScenarioById(scenarioId);
+    }
 
     // Build conversation history for LLM
     const messages = [
@@ -25,8 +34,19 @@ export async function POST(request: NextRequest) {
       },
     ];
 
-    // Generate suggested responses
-    const suggestedResponses = await llmClient.generateSuggestions(messages, count);
+    // Generate suggested responses with context
+    const suggestedResponses = await llmClient.generateSuggestions(
+      messages, 
+      count,
+      {
+        language,
+        scenario: scenario ? {
+          title: scenario.title,
+          theme: scenario.theme,
+          difficulty: scenario.difficulty,
+        } : undefined,
+      }
+    );
 
     return NextResponse.json({
       suggestedResponses,
