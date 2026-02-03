@@ -99,7 +99,7 @@ const styles = {
   } as React.CSSProperties,
 
   WordLearning: {
-    backgroundColor: '#FFD700',
+    backgroundColor: '#FFD54F',
     color: '#000000',
   } as React.CSSProperties,
 
@@ -270,8 +270,8 @@ export default function InteractiveText({ text, selectedWord, onWordClick, vocab
                       // Level 1 or unknown: slightly brighter underline on hover
                       e.currentTarget.style.textDecorationColor = '#3b82f6';
                     } else if (comprehension >= 2 && comprehension <= 4) {
-                      // Learning words (2-4): slightly brighter yellow
-                      e.currentTarget.style.backgroundColor = '#FFE55C';
+                      // Learning words (2-4): slightly brighter yellow on hover
+                      e.currentTarget.style.backgroundColor = '#FFE082';
                     }
                     // Known words (5) have no hover effect
                   }
@@ -288,7 +288,7 @@ export default function InteractiveText({ text, selectedWord, onWordClick, vocab
                       e.currentTarget.style.backgroundColor = 'transparent';
                     } else if (comprehension >= 2 && comprehension <= 4) {
                       // Learning words have yellow background
-                      e.currentTarget.style.backgroundColor = '#FFD700';
+                      e.currentTarget.style.backgroundColor = '#FFD54F';
                     }
                   }
                 }}

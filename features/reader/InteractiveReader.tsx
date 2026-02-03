@@ -97,6 +97,93 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
     loadVocabulary();
   }, [articleWords]);
 
+  /**
+   * Auto-add word to vocabulary with level 2 comprehension
+   * This is called when a user clicks on an unknown word (level 1)
+   * Clicking advances it to level 2 (yellow highlighting)
+   */
+  const autoAddWordToVocabulary = async (word: string): Promise<void> => {
+    const normalizedWord = word.toLowerCase().trim();
+    
+    // Validate word
+    if (!normalizedWord || normalizedWord.length === 0) {
+      return;
+    }
+
+    // Check if word already exists in vocabulary map
+    if (vocabularyMap.has(normalizedWord)) {
+      return; // Word already added, no need to add again
+    }
+
+    try {
+      // Fetch translation automatically (non-blocking)
+      let translation = '';
+      try {
+        const translationResult = await getTranslation(word, {
+          sourceLang: 'es', // TODO: Get from article or user settings
+          targetLang: 'en',
+        });
+        if (translationResult?.translation) {
+          translation = translationResult.translation;
+        }
+      } catch (error) {
+        console.error('Error fetching translation:', error);
+        // Continue even if translation fails - user can add it manually
+      }
+      
+      // Create optimistic vocabulary entry with level 2 (clicking advances from unknown/level 1 to level 2)
+      const newVocabulary: Vocabulary = {
+        id: 'temp-' + Date.now(),
+        word: normalizedWord,
+        translation: translation || 'Translation placeholder',
+        language: 'placeholder', // TODO: Get from article or user settings
+        comprehension: 2,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // Optimistically update the map immediately for instant visual feedback
+      setVocabularyMap(prev => {
+        const newMap = new Map(prev);
+        newMap.set(normalizedWord, newVocabulary);
+        return newMap;
+      });
+      
+      // Save to database in background (non-blocking)
+      upsertVocabulary(word, 2, translation)
+        .then(updated => {
+          if (updated) {
+            // Update with real database entry (replaces temp ID)
+            setVocabularyMap(prev => {
+              const newMap = new Map(prev);
+              newMap.set(normalizedWord, updated);
+              return newMap;
+            });
+          } else {
+            // If save failed, remove from map (revert optimistic update)
+            console.error('Failed to save vocabulary to database');
+            setVocabularyMap(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(normalizedWord);
+              return newMap;
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Error saving vocabulary:', error);
+          // Revert optimistic update on error
+          setVocabularyMap(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(normalizedWord);
+            return newMap;
+          });
+        });
+    } catch (error) {
+      console.error('Error auto-adding word to vocabulary:', error);
+      // Don't update map if there's an error
+    }
+  };
+
   useEffect(() => {
     async function loadArticle() {
       setIsLoading(true);
@@ -153,67 +240,12 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
             progress: article.progress || 0,
           }}
           selectedWord={selectedWord}
-          onWordSelect={async (word: string) => {
+          onWordSelect={(word: string) => {
             setSelectedWord(word);
             
             // Auto-add word to vocabulary with level 1 if it doesn't exist
-            const normalizedWord = word.toLowerCase();
-            if (!vocabularyMap.has(normalizedWord)) {
-              try {
-                // Fetch translation automatically
-                let translation = '';
-                try {
-                  const translationResult = await getTranslation(word, {
-                    sourceLang: 'es', // TODO: Get from article or user settings
-                    targetLang: 'en',
-                  });
-                  if (translationResult?.translation) {
-                    translation = translationResult.translation;
-                  }
-                } catch (error) {
-                  console.error('Error fetching translation:', error);
-                }
-                
-                // Create vocabulary entry with level 1
-                const newVocabulary: Vocabulary = {
-                  id: 'temp-' + Date.now(),
-                  word: normalizedWord,
-                  translation: translation || 'Translation placeholder',
-                  language: 'placeholder',
-                  comprehension: 1,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                };
-                
-                // Optimistically update the map immediately
-                setVocabularyMap(prev => {
-                  const newMap = new Map(prev);
-                  newMap.set(normalizedWord, newVocabulary);
-                  return newMap;
-                });
-                
-                // Save to database in background
-                upsertVocabulary(word, 1, translation).then(updated => {
-                  if (updated) {
-                    setVocabularyMap(prev => {
-                      const newMap = new Map(prev);
-                      newMap.set(normalizedWord, updated);
-                      return newMap;
-                    });
-                  }
-                }).catch(error => {
-                  console.error('Error saving vocabulary:', error);
-                  // Revert optimistic update on error
-                  setVocabularyMap(prev => {
-                    const newMap = new Map(prev);
-                    newMap.delete(normalizedWord);
-                    return newMap;
-                  });
-                });
-              } catch (error) {
-                console.error('Error auto-adding word:', error);
-              }
-            }
+            // This happens automatically when clicking any unknown word
+            autoAddWordToVocabulary(word);
           }}
           vocabularyMap={vocabularyMap}
         />

@@ -220,38 +220,39 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
           setVocabulary(mapVocab);
           setSelectedRating(mapVocab.comprehension === 5 ? 'check' : mapVocab.comprehension);
           setTranslation(mapVocab.translation);
-        } else {
-          // Try to load from database
-          const vocab = await getVocabularyByWord(word);
-          if (vocab) {
-            setVocabulary(vocab);
-            setSelectedRating(vocab.comprehension === 5 ? 'check' : vocab.comprehension);
-            setTranslation(vocab.translation);
           } else {
-            // No vocabulary entry found - word should be treated as level 1
-            setVocabulary(null);
-            setSelectedRating(1);
-            setTranslation('');
-            
-            // Fetch translation from API
-            setIsTranslating(true);
-            try {
-              const translationResult = await getTranslation(word, {
-                sourceLang: 'es', // TODO: Get from article or user settings
-                targetLang: 'en',
-              });
+            // Try to load from database
+            const vocab = await getVocabularyByWord(word);
+            if (vocab) {
+              setVocabulary(vocab);
+              setSelectedRating(vocab.comprehension === 5 ? 'check' : vocab.comprehension);
+              setTranslation(vocab.translation);
+            } else {
+              // No vocabulary entry found - word is unknown (treated as level 1)
+              // When clicked, it will be auto-added with level 2
+              setVocabulary(null);
+              setSelectedRating(1); // Show as level 1 in panel (unknown state)
+              setTranslation('');
               
-              if (translationResult && translationResult.translation) {
-                setTranslation(translationResult.translation);
+              // Fetch translation from API
+              setIsTranslating(true);
+              try {
+                const translationResult = await getTranslation(word, {
+                  sourceLang: 'es', // TODO: Get from article or user settings
+                  targetLang: 'en',
+                });
+                
+                if (translationResult && translationResult.translation) {
+                  setTranslation(translationResult.translation);
+                }
+              } catch (error) {
+                console.error('Error fetching translation:', error);
+                // Translation failed, but don't block UI - user can still enter manually
+              } finally {
+                setIsTranslating(false);
               }
-            } catch (error) {
-              console.error('Error fetching translation:', error);
-              // Translation failed, but don't block UI - user can still enter manually
-            } finally {
-              setIsTranslating(false);
             }
           }
-        }
       } catch (error) {
         console.error('Error loading vocabulary:', error);
       } finally {
