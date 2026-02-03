@@ -100,7 +100,7 @@ const styles = {
 
   Footer: {
     padding: '16px 32px',
-    borderTop: '1px solid #313131',
+    borderTop: 'none',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',

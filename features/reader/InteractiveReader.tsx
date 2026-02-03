@@ -30,15 +30,18 @@ const styles = {
 
   RightSidebar: {
     position: 'fixed' as const,
-    top: '100px', // Start below TopHeader
-    right: 0,
+    top: '116px', // Start below TopHeader with 16px margin
+    right: '16px', // 16px margin from right edge
     width: '320px',
-    height: 'calc(100vh - 100px)', // Full height minus TopHeader
-    backgroundColor: '#1f1f1f',
-    borderLeft: '1px solid #313131',
+    height: 'calc(100vh - 132px)', // Full height minus TopHeader and margins (100px + 16px top + 16px bottom)
+    backgroundColor: '#1a1a1a',
+    borderLeft: '2px solid #2a2a2a',
+    borderRadius: '8px',
+    boxShadow: '-4px 0 12px rgba(0, 0, 0, 0.5)',
     display: 'flex',
     flexDirection: 'column' as const,
     zIndex: 100,
+    marginBottom: '16px', // Bottom margin
   } as React.CSSProperties,
 
   LoadingContainer: {
