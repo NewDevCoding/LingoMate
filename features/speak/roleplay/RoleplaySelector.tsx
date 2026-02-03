@@ -7,9 +7,14 @@ import { RoleplayScenario } from '@/types/conversation';
 const styles = {
   Container: {
     width: '100%',
-    minHeight: '100vh',
+    height: '100%',
     backgroundColor: '#161616',
     padding: '40px 24px',
+    overflowY: 'auto' as const,
+    overflowX: 'hidden' as const,
+    overscrollBehavior: 'none' as any, // Prevent bounce but allow scrolling
+    scrollbarWidth: 'thin' as const, // Firefox
+    scrollbarColor: '#404040 transparent' as any, // Firefox
   } as React.CSSProperties,
 
   Header: {

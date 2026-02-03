@@ -15,6 +15,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'row' as const,
     overflow: 'hidden' as const, // Prevent all scrolling at screen level
+    overscrollBehavior: 'none' as any, // Prevent bouncy scroll on touchpad
   } as React.CSSProperties,
   
   SidebarWrapper: {
@@ -30,6 +31,7 @@ const styles = {
     minWidth: 0, // Prevents flex items from overflowing
     paddingTop: '100px', // Accommodate top header
     height: '100vh', // Constrain height to viewport
+    overscrollBehavior: 'none' as any, // Prevent bouncy scroll on touchpad
   } as React.CSSProperties,
 
   MainContentWithFixedSidebar: {
@@ -42,6 +44,7 @@ const styles = {
     marginLeft: '279px', // Sidebar width when expanded
     transition: 'margin-left 0.3s ease',
     height: '100vh', // Constrain height to viewport
+    overscrollBehavior: 'none' as any, // Prevent bouncy scroll on touchpad
   } as React.CSSProperties,
 };
 
@@ -80,13 +83,17 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const isReaderArticlePage = pathname?.startsWith('/reader/') && pathname !== '/reader';
   const hideLeftSidebar = isReaderArticlePage;
   
+  // Hide TopHeader on roleplay pages (they have their own header)
+  const isRoleplayPage = pathname?.startsWith('/speak/roleplay/');
+  const showTopHeader = !isRoleplayPage;
+  
   if (isAuthPage) {
     return <>{children}</>;
   }
 
   return (
     <>
-      <TopHeader />
+      {showTopHeader && <TopHeader />}
       <div style={styles.Screen}>
         {!hideLeftSidebar && (
           <div style={styles.SidebarWrapper}>
@@ -102,6 +109,10 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
           paddingTop: 0,
           marginLeft: 0,
           width: '100%',
+        } : isRoleplayPage ? {
+          ...styles.MainContent,
+          paddingTop: 0, // No padding for roleplay pages - header is at top
+          marginLeft: isCollapsed ? '80px' : '279px',
         } : isFixedSidebar ? {
           ...styles.MainContentWithFixedSidebar,
           marginLeft: isCollapsed ? '80px' : '279px',

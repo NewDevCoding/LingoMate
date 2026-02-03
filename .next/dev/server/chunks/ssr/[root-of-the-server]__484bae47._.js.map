@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/User/Desktop/LingoMate/app/dashboard/page.tsx"],"sourcesContent":["import React from 'react';\r\n\r\nexport default function DashboardPage() {\r\n  return (\r\n    <div>\r\n      <h1>Dashboard</h1>\r\n      <p>Dashboard page content</p>\r\n    </div>\r\n  );\r\n}\r\n"],"names":[],"mappings":";;;;;;AAEe,SAAS;IACtB,qBACE,sQAAC;;0BACC,sQAAC;0BAAG;;;;;;0BACJ,sQAAC;0BAAE;;;;;;;;;;;;AAGT","debugId":null}}]
-}
