@@ -1,5 +1,4 @@
 {
-  "/api/translation/route": "app/api/translation/route.js",
   "/page": "app/page.js",
   "/reader/[id]/page": "app/reader/[id]/page.js",
   "/reader/page": "app/reader/page.js",
