@@ -91,8 +91,9 @@ const styles = {
   ContentArea: {
     flex: 1,
     display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
     padding: '24px 380px 60px 60px', // Reduced top padding to match LingQ
     position: 'relative' as const,
     overflow: 'hidden' as const,
@@ -100,12 +101,22 @@ const styles = {
     height: '100%', // Ensure full height for absolute positioning
   } as React.CSSProperties,
 
+  TextWrapper: {
+    width: '100%',
+    flex: 1,
+    display: 'flex',
+    justifyContent: 'center',
+    minHeight: 0,
+  } as React.CSSProperties,
+
   Footer: {
-    padding: '16px 32px',
+    padding: '16px 0',
     borderTop: 'none',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
+    width: '100%',
+    flexShrink: 0,
   } as React.CSSProperties,
 
   SentenceViewButton: {
@@ -174,27 +185,28 @@ export default function ReaderContent({ article, selectedWord, onWordSelect, voc
       </div>
 
       <div style={styles.ContentArea}>
-        <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'visible' }}>
-          {viewMode === 'page' ? (
-            <InteractiveText
-              text={article.content}
-              selectedWord={selectedWord}
-              onWordClick={onWordSelect}
-              vocabularyMap={vocabularyMap}
-            />
-          ) : (
-            <SentenceView
-              text={article.content}
-              selectedWord={selectedWord}
-              onWordClick={onWordSelect}
-              vocabularyMap={vocabularyMap}
-              onVocabularyUpdate={onVocabularyUpdate}
-            />
-          )}
+        <div style={styles.TextWrapper}>
+          <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'visible' }}>
+            {viewMode === 'page' ? (
+              <InteractiveText
+                text={article.content}
+                selectedWord={selectedWord}
+                onWordClick={onWordSelect}
+                vocabularyMap={vocabularyMap}
+              />
+            ) : (
+              <SentenceView
+                text={article.content}
+                selectedWord={selectedWord}
+                onWordClick={onWordSelect}
+                vocabularyMap={vocabularyMap}
+                onVocabularyUpdate={onVocabularyUpdate}
+              />
+            )}
+          </div>
         </div>
-      </div>
 
-      <div style={styles.Footer}>
+        <div style={styles.Footer}>
         <button
           style={{
             ...styles.SentenceViewButton,
@@ -211,6 +223,7 @@ export default function ReaderContent({ article, selectedWord, onWordSelect, voc
           </svg>
           <span>{viewMode === 'page' ? 'Sentence View' : 'Page View'}</span>
         </button>
+        </div>
       </div>
     </div>
   );

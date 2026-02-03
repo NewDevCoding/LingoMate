@@ -35,6 +35,23 @@ const styles = {
     overflow: 'visible' as const,
   } as React.CSSProperties,
 
+  ProgressBar: {
+    height: '4px',
+    backgroundColor: '#262626',
+    width: '100%',
+    borderRadius: '2px',
+    marginBottom: '16px',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  ProgressFill: (progress: number) => ({
+    height: '100%',
+    backgroundColor: '#26c541',
+    width: `${progress}%`,
+    transition: 'width 0.3s ease',
+    borderRadius: '2px',
+  } as React.CSSProperties),
+
   Container: {
     color: '#ffffff',
     fontSize: '18px',
@@ -385,6 +402,7 @@ export default function SentenceView({ text, selectedWord, onWordClick, vocabula
 
   const hasPrevious = currentSentenceIndex > 0;
   const hasNext = currentSentenceIndex < sentences.length - 1;
+  const progress = sentences.length > 0 ? ((currentSentenceIndex + 1) / sentences.length) * 100 : 0;
 
   // Initialize audio managers
   useEffect(() => {
@@ -540,6 +558,9 @@ export default function SentenceView({ text, selectedWord, onWordClick, vocabula
         }
       `}</style>
       <div style={styles.Wrapper}>
+        <div style={styles.ProgressBar}>
+          <div style={styles.ProgressFill(progress)} />
+        </div>
         <div style={styles.Container}>
         {/* Sentence Display */}
         <div style={styles.SentenceDisplay}>

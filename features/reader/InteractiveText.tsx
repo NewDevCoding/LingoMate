@@ -24,6 +24,23 @@ const styles = {
     overflow: 'visible' as const,
   } as React.CSSProperties,
 
+  ProgressBar: {
+    height: '4px',
+    backgroundColor: '#262626',
+    width: '100%',
+    borderRadius: '2px',
+    marginBottom: '16px',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  ProgressFill: (progress: number) => ({
+    height: '100%',
+    backgroundColor: '#26c541',
+    width: `${progress}%`,
+    transition: 'width 0.3s ease',
+    borderRadius: '2px',
+  } as React.CSSProperties),
+
   Container: {
     color: '#ffffff',
     fontSize: '18px',
@@ -245,6 +262,7 @@ export default function InteractiveText({ text, selectedWord, onWordClick, vocab
   const currentPageWords = pages[currentPage] || [];
   const hasPrevious = currentPage > 0;
   const hasNext = currentPage < pages.length - 1;
+  const progress = pages.length > 0 ? ((currentPage + 1) / pages.length) * 100 : 0;
 
   const handleWordClick = (word: string) => {
     const cleanWord = word.replace(/[.,!?;:]/g, '').toLowerCase();
@@ -267,6 +285,9 @@ export default function InteractiveText({ text, selectedWord, onWordClick, vocab
 
   return (
     <div style={styles.Wrapper}>
+      <div style={styles.ProgressBar}>
+        <div style={styles.ProgressFill(progress)} />
+      </div>
       <button
         style={{
           ...styles.ChevronButton,
