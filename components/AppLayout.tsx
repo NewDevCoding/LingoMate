@@ -72,6 +72,13 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   // Pages where sidebar should be fixed
   const fixedSidebarPages = ['/reader', '/vocabulary', '/speak/roleplay'];
   const isFixedSidebar = fixedSidebarPages.some(page => pathname?.startsWith(page));
+  
+  // Hide layout on auth pages
+  const isAuthPage = pathname?.startsWith('/auth');
+  
+  if (isAuthPage) {
+    return <>{children}</>;
+  }
 
   return (
     <>

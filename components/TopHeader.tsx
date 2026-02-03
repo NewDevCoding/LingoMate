@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useAuth } from './AuthProvider';
+import { useRouter } from 'next/navigation';
 
 const styles = {
   HeaderContainer: {
@@ -63,6 +65,15 @@ const styles = {
 
 export default function TopHeader() {
   const [selectedLanguage, setSelectedLanguage] = useState('ES');
+  const { user, signOut, loading } = useAuth();
+  const router = useRouter();
+  const [showMenu, setShowMenu] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/auth/login');
+    router.refresh();
+  };
 
   return (
     <div style={styles.HeaderContainer}>
@@ -129,16 +140,101 @@ export default function TopHeader() {
         <span>12</span>
       </button>
 
-      {/* Profile Picture */}
-      <div
-        style={styles.ProfilePicture}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.05)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
-        }}
-      />
+      {/* Profile Picture / Auth */}
+      {loading ? (
+        <div style={{ ...styles.ProfilePicture, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '20px', height: '20px', border: '2px solid #888', borderTopColor: '#8b5cf6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        </div>
+      ) : user ? (
+        <div style={{ position: 'relative' }}>
+          <div
+            style={styles.ProfilePicture}
+            onClick={() => setShowMenu(!showMenu)}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            <span style={{ color: '#161616', fontSize: '18px', fontWeight: 'bold' }}>
+              {user.email?.charAt(0).toUpperCase() || 'U'}
+            </span>
+          </div>
+          {showMenu && (
+            <>
+              <div
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 1000,
+                }}
+                onClick={() => setShowMenu(false)}
+              />
+              <div style={{
+                position: 'absolute',
+                top: '50px',
+                right: '0',
+                backgroundColor: '#1f1f1f',
+                border: '1px solid #313131',
+                borderRadius: '8px',
+                padding: '8px',
+                minWidth: '200px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                zIndex: 1001,
+              }}>
+                <div style={{ padding: '8px 12px', color: '#ffffff', fontSize: '14px', borderBottom: '1px solid #313131', marginBottom: '4px' }}>
+                  {user.email}
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: '#ff8888',
+                    fontSize: '14px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#2a2a2a';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  Sign Out
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        <button
+          onClick={() => router.push('/auth/login')}
+          style={{
+            ...styles.HeaderButton,
+            backgroundColor: '#8b5cf6',
+            borderColor: '#8b5cf6',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#7c3aed';
+            e.currentTarget.style.borderColor = '#7c3aed';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#8b5cf6';
+            e.currentTarget.style.borderColor = '#8b5cf6';
+          }}
+        >
+          Sign In
+        </button>
+      )}
     </div>
   );
 }
