@@ -19,25 +19,42 @@ const styles = {
     height: '100%',
     paddingLeft: '64px',
     paddingRight: '64px',
+    display: 'flex' as const,
+    flexDirection: 'column' as const,
+    overflow: 'hidden' as const,
   } as React.CSSProperties,
 
   Container: {
     color: '#ffffff',
     fontSize: '18px',
+    fontWeight: 500,
     lineHeight: '1.8',
     flex: 1,
     textAlign: 'left' as const,
     maxWidth: '100%',
     wordWrap: 'break-word' as const,
     overflowWrap: 'break-word' as const,
-    display: 'block' as const,
+    display: 'flex' as const,
+    flexDirection: 'column' as const,
+    overflow: 'hidden' as const,
+    height: '100%',
+    boxSizing: 'border-box' as const,
   } as React.CSSProperties,
 
   TextBlock: {
-    display: 'block' as const,
+    display: 'flex' as const,
+    flexDirection: 'column' as const,
     width: '100%',
-    maxHeight: '100%',
+    height: '100%',
     overflow: 'hidden' as const,
+    gap: '1.07em', // Reduced by 1/3 from 1.6em
+    boxSizing: 'border-box' as const,
+  } as React.CSSProperties,
+
+  Sentence: {
+    display: 'block' as const,
+    marginBottom: '0',
+    lineHeight: '1.8',
   } as React.CSSProperties,
 
   ChevronButton: {
@@ -60,11 +77,11 @@ const styles = {
   } as React.CSSProperties,
 
   ChevronLeft: {
-    left: '-16px',
+    left: '8px',
   } as React.CSSProperties,
 
   ChevronRight: {
-    right: '-16px',
+    right: '8px',
   } as React.CSSProperties,
 
   ChevronButtonDisabled: {
@@ -109,9 +126,10 @@ const styles = {
   } as React.CSSProperties,
 };
 
-// Approximate words per page - set high to display larger paragraphs
-// This creates fewer pages with more content per page
-const WORDS_PER_PAGE = 300;
+// Approximate words per page - calculated to fit viewport without overflow
+// Based on: ~18px font, 1.8 line height, ~1.6em gap between sentences
+// Balanced to fill page while preventing overflow
+const WORDS_PER_PAGE = 160;
 
 /**
  * Get word color style based on vocabulary status
@@ -148,37 +166,63 @@ function getWordStyle(vocabulary: Vocabulary | undefined, isSelected: boolean, i
 export default function InteractiveText({ text, selectedWord, onWordClick, vocabularyMap }: InteractiveTextProps) {
   const [currentPage, setCurrentPage] = useState(0);
 
-  // Split text into words and punctuation, preserving spaces
-  const allWords = useMemo(() => {
-    return text.split(/(\s+|[.,!?;:])/).filter(token => token.trim() !== '');
+  // Split text into sentences first
+  const sentences = useMemo(() => {
+    // Split by sentence endings (. ! ?) but keep the punctuation
+    // This regex splits on sentence endings while preserving them
+    const sentenceEndings = /([.!?]+)\s+/g;
+    const parts = text.split(sentenceEndings);
+    const result: string[] = [];
+    
+    for (let i = 0; i < parts.length; i += 2) {
+      const sentence = parts[i];
+      const punctuation = parts[i + 1] || '';
+      if (sentence.trim()) {
+        result.push((sentence + punctuation).trim());
+      }
+    }
+    
+    // If no sentence endings found, return the whole text as one sentence
+    return result.length > 0 ? result : [text];
   }, [text]);
 
-  // Split words into pages
+  // Split sentences into pages based on word count
+  // Each page should contain as many sentences as possible without overflowing
+  // Uses a threshold slightly below max to account for spacing and prevent overflow
   const pages = useMemo(() => {
     const pages: string[][] = [];
-    let currentPageWords: string[] = [];
+    let currentPageSentences: string[] = [];
     let wordCount = 0;
 
-    for (const word of allWords) {
-      const cleanWord = word.replace(/[.,!?;:]/g, '').trim();
-      if (cleanWord) {
-        wordCount++;
-      }
-      currentPageWords.push(word);
+    // Use 95% of max to account for sentence spacing and prevent overflow
+    const threshold = Math.floor(WORDS_PER_PAGE * 0.95);
 
-      if (wordCount >= WORDS_PER_PAGE) {
-        pages.push([...currentPageWords]);
-        currentPageWords = [];
-        wordCount = 0;
+    for (const sentence of sentences) {
+      // Count words in this sentence
+      const sentenceWords = sentence.split(/\s+/).filter(w => w.trim().length > 0);
+      const sentenceWordCount = sentenceWords.length;
+
+      // If adding this sentence would exceed the threshold, start a new page
+      // Only split if we already have sentences on the current page
+      // This ensures we fit as many sentences as possible per page
+      if (wordCount + sentenceWordCount > threshold && currentPageSentences.length > 0) {
+        pages.push([...currentPageSentences]);
+        currentPageSentences = [sentence]; // Start new page with this sentence
+        wordCount = sentenceWordCount;
+      } else {
+        // Add sentence to current page
+        currentPageSentences.push(sentence);
+        wordCount += sentenceWordCount;
       }
     }
 
-    if (currentPageWords.length > 0) {
-      pages.push(currentPageWords);
+    // Add remaining sentences as the last page
+    if (currentPageSentences.length > 0) {
+      pages.push(currentPageSentences);
     }
 
-    return pages.length > 0 ? pages : [allWords];
-  }, [allWords]);
+    return pages.length > 0 ? pages : [sentences];
+  }, [sentences]);
 
   // Reset to first page when text changes
   useEffect(() => {
@@ -237,67 +281,76 @@ export default function InteractiveText({ text, selectedWord, onWordClick, vocab
       </button>
 
       <div style={styles.Container}>
-        <p style={styles.TextBlock}>
-          {currentPageWords.map((word, index) => {
-            const cleanWord = word.replace(/[.,!?;:]/g, '').toLowerCase();
-            const isPunctuation = /^[.,!?;:]+$/.test(word.trim());
-            const isSelected = selectedWord === cleanWord;
-            const vocabulary = vocabularyMap.get(cleanWord);
-            const wordStyle = getWordStyle(vocabulary, isSelected, isPunctuation);
-
-            if (word.trim() === '') {
-              return <span key={index}>{word}</span>;
-            }
-
-            // Don't make punctuation clickable
-            if (isPunctuation) {
-              return <span key={index}>{word}</span>;
-            }
-
+        <div style={styles.TextBlock}>
+          {currentPageWords.map((sentence, sentenceIndex) => {
+            // Split sentence into words and punctuation, preserving spaces
+            const sentenceTokens = sentence.split(/(\s+|[.,!?;:])/).filter(token => token.trim() !== '');
+            
             return (
-              <span
-                key={index}
-                style={{
-                  ...styles.Word,
-                  ...wordStyle,
-                }}
-                onClick={() => handleWordClick(word)}
-                onMouseEnter={(e) => {
-                  // Hover effects for different word statuses
-                  if (!isSelected && !isPunctuation) {
-                    const comprehension = vocabulary?.comprehension || 1;
-                    if (comprehension === 1 || !vocabulary) {
-                      // Level 1 or unknown: slightly brighter underline on hover
-                      e.currentTarget.style.textDecorationColor = '#3b82f6';
-                    } else if (comprehension >= 2 && comprehension <= 4) {
-                      // Learning words (2-4): slightly brighter yellow on hover
-                      e.currentTarget.style.backgroundColor = '#FFE082';
-                    }
-                    // Known words (5) have no hover effect
+              <div key={sentenceIndex} style={styles.Sentence}>
+                {sentenceTokens.map((word, wordIndex) => {
+                  const cleanWord = word.replace(/[.,!?;:]/g, '').toLowerCase();
+                  const isPunctuation = /^[.,!?;:]+$/.test(word.trim());
+                  const isSelected = selectedWord === cleanWord;
+                  const vocabulary = vocabularyMap.get(cleanWord);
+                  const wordStyle = getWordStyle(vocabulary, isSelected, isPunctuation);
+
+                  if (word.trim() === '') {
+                    return <span key={wordIndex}>{word}</span>;
                   }
-                }}
-                onMouseLeave={(e) => {
-                  // Restore original styling
-                  if (!isSelected && !isPunctuation) {
-                    const comprehension = vocabulary?.comprehension || 1;
-                    if (comprehension === 1 || !vocabulary) {
-                      // Level 1 or unknown: restore subtle blue underline
-                      e.currentTarget.style.textDecorationColor = '#60a5fa';
-                    } else if (comprehension === 5) {
-                      // Known words have no background
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                    } else if (comprehension >= 2 && comprehension <= 4) {
-                      // Learning words have yellow background
-                      e.currentTarget.style.backgroundColor = '#FFD54F';
-                    }
+
+                  // Don't make punctuation clickable
+                  if (isPunctuation) {
+                    return <span key={wordIndex}>{word}</span>;
                   }
-                }}
-              >
-                {word}
-              </span>
+
+                  return (
+                    <span
+                      key={wordIndex}
+                      style={{
+                        ...styles.Word,
+                        ...wordStyle,
+                      }}
+                      onClick={() => handleWordClick(word)}
+                      onMouseEnter={(e) => {
+                        // Hover effects for different word statuses
+                        if (!isSelected && !isPunctuation) {
+                          const comprehension = vocabulary?.comprehension || 1;
+                          if (comprehension === 1 || !vocabulary) {
+                            // Level 1 or unknown: slightly brighter underline on hover
+                            e.currentTarget.style.textDecorationColor = '#3b82f6';
+                          } else if (comprehension >= 2 && comprehension <= 4) {
+                            // Learning words (2-4): slightly brighter yellow on hover
+                            e.currentTarget.style.backgroundColor = '#FFE082';
+                          }
+                          // Known words (5) have no hover effect
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        // Restore original styling
+                        if (!isSelected && !isPunctuation) {
+                          const comprehension = vocabulary?.comprehension || 1;
+                          if (comprehension === 1 || !vocabulary) {
+                            // Level 1 or unknown: restore subtle blue underline
+                            e.currentTarget.style.textDecorationColor = '#60a5fa';
+                          } else if (comprehension === 5) {
+                            // Known words have no background
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          } else if (comprehension >= 2 && comprehension <= 4) {
+                            // Learning words have yellow background
+                            e.currentTarget.style.backgroundColor = '#FFD54F';
+                          }
+                        }
+                      }}
+                    >
+                      {word}
+                    </span>
+                  );
+                })}
+              </div>
             );
           })}
-        </p>
+        </div>
       </div>
 
       <button
