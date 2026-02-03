@@ -241,7 +241,7 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
   useEffect(() => {
     if (!word) {
       setVocabulary(null);
-      setSelectedRating(1);
+      setSelectedRating(0);
       setTranslation('');
       setMeanings([]);
       return;
@@ -267,10 +267,10 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
               setSelectedRating(vocab.comprehension === 5 ? 'check' : vocab.comprehension);
               setTranslation(vocab.translation);
             } else {
-              // No vocabulary entry found - word is unknown (treated as level 1)
-              // When clicked, it will be auto-added with level 2
+              // No vocabulary entry found - word is unknown (comprehension 0)
+              // When clicked, it will be auto-added with level 1
               setVocabulary(null);
-              setSelectedRating(1); // Show as level 1 in panel (unknown state)
+              setSelectedRating(0); // Show as level 0 in panel (not yet clicked)
               setTranslation('');
               
               // Fetch translation and meanings from API
@@ -386,7 +386,7 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
   const handleTranslationBlur = async () => {
     if (!word || !translation.trim()) return;
 
-    const comprehension = selectedRating === 'check' ? 5 : (selectedRating || 1);
+    const comprehension = selectedRating === 'check' ? 5 : (selectedRating ?? 0);
     try {
       const updated = await upsertVocabulary(word, comprehension, translation);
       if (updated) {

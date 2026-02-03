@@ -84,6 +84,11 @@ const styles = {
     color: '#000000',
   } as React.CSSProperties,
 
+  WordLearningLight: {
+    backgroundColor: '#FFF9C4',
+    color: '#000000',
+  } as React.CSSProperties,
+
   WordList: {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -209,14 +214,20 @@ function getWordStyle(vocabulary: Vocabulary | undefined, isSelected: boolean, i
   if (vocabulary) {
     if (vocabulary.comprehension === 5) {
       return {};
-    } else if (vocabulary.comprehension >= 2 && vocabulary.comprehension <= 4) {
+    } else if (vocabulary.comprehension === 3 || vocabulary.comprehension === 4) {
+      // Learning (comprehension 3-4): Light yellow
+      return styles.WordLearningLight;
+    } else if (vocabulary.comprehension === 2) {
+      // Learning (comprehension 2): Yellow
       return styles.WordLearning;
     } else if (vocabulary.comprehension === 1) {
       return styles.WordUnknown;
+    } else if (vocabulary.comprehension === 0) {
+      return {};
     }
   }
 
-  return styles.WordUnknown;
+  return {};
 }
 
 export default function SentenceView({ text, selectedWord, onWordClick, vocabularyMap, onVocabularyUpdate }: SentenceViewProps) {
@@ -374,13 +385,13 @@ export default function SentenceView({ text, selectedWord, onWordClick, vocabula
     const translation = wordTranslations.get(wordInfo.cleanWord) || '';
     
     try {
-      // Create optimistic vocabulary entry with level 2
+      // Create optimistic vocabulary entry with level 1 (first click)
       const optimisticVocabulary: Vocabulary = {
         id: 'temp-' + Date.now(),
         word: wordInfo.cleanWord,
         translation: translation || 'Translation placeholder',
         language: 'placeholder',
-        comprehension: 2,
+        comprehension: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -391,7 +402,7 @@ export default function SentenceView({ text, selectedWord, onWordClick, vocabula
       // Save to database in background
       const savedVocabulary = await upsertVocabulary(
         wordInfo.cleanWord,
-        2,
+        1,
         translation || undefined
       );
 
@@ -437,10 +448,10 @@ export default function SentenceView({ text, selectedWord, onWordClick, vocabula
         {/* Word List */}
         <div className="sentence-view-word-list" style={styles.WordList}>
           {wordsInSentence.map((wordInfo, index) => {
-            const comprehension = wordInfo.vocabulary?.comprehension || 1;
+            const comprehension = wordInfo.vocabulary?.comprehension ?? 0;
             // Prioritize vocabulary translation (saved meaning), then fetched translation
             const translation = wordInfo.vocabulary?.translation || wordTranslations.get(wordInfo.cleanWord) || '';
-            const isNew = !wordInfo.vocabulary;
+            const isNew = !wordInfo.vocabulary || wordInfo.vocabulary.comprehension === 0;
 
             return (
               <div
@@ -469,10 +480,11 @@ export default function SentenceView({ text, selectedWord, onWordClick, vocabula
                   style={{
                     ...styles.ComprehensionBadge,
                     ...(isNew ? styles.ComprehensionBadgeNew : {}),
-                    ...(comprehension >= 2 && comprehension <= 4 ? styles.ComprehensionBadgeActive : {}),
+                    ...(comprehension === 2 ? styles.ComprehensionBadgeActive : {}),
+                    ...(comprehension === 3 || comprehension === 4 ? { backgroundColor: '#FFF9C4', color: '#000000', borderColor: '#FFF9C4' } : {}),
                   }}
                 >
-                  {isNew ? '+' : (comprehension === 5 ? '✓' : comprehension)}
+                  {isNew ? '+' : (comprehension === 5 ? '✓' : (comprehension === 0 ? '+' : comprehension))}
                 </div>
                 <div style={styles.WordContent}>
                   <div style={styles.WordRow}>

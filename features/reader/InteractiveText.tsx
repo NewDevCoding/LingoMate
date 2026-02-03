@@ -120,6 +120,11 @@ const styles = {
     color: '#000000',
   } as React.CSSProperties,
 
+  WordLearningLight: {
+    backgroundColor: '#FFF9C4',
+    color: '#000000',
+  } as React.CSSProperties,
+
   WordKnown: {
     backgroundColor: '#26c541',
     color: '#000000',
@@ -150,17 +155,23 @@ function getWordStyle(vocabulary: Vocabulary | undefined, isSelected: boolean, i
     if (vocabulary.comprehension === 5) {
       // Known (comprehension 5): No highlighting - default text color
       return {};
-    } else if (vocabulary.comprehension >= 2 && vocabulary.comprehension <= 4) {
-      // Learning (comprehension 2-4): Yellow
+    } else if (vocabulary.comprehension === 3 || vocabulary.comprehension === 4) {
+      // Learning (comprehension 3-4): Light yellow
+      return styles.WordLearningLight;
+    } else if (vocabulary.comprehension === 2) {
+      // Learning (comprehension 2): Yellow
       return styles.WordLearning;
     } else if (vocabulary.comprehension === 1) {
-      // Level 1: Underlined (same as unknown)
+      // Level 1: Underlined (first click)
       return styles.WordUnknown;
+    } else if (vocabulary.comprehension === 0) {
+      // Level 0: No styling (not yet clicked)
+      return {};
     }
   }
 
-  // Unknown word (treated as level 1): Underlined
-  return styles.WordUnknown;
+  // Unknown word (comprehension 0): No styling
+  return {};
 }
 
 export default function InteractiveText({ text, selectedWord, onWordClick, vocabularyMap }: InteractiveTextProps) {
@@ -317,13 +328,16 @@ export default function InteractiveText({ text, selectedWord, onWordClick, vocab
                       onMouseEnter={(e) => {
                         // Hover effects for different word statuses
                         if (!isSelected && !isPunctuation) {
-                          const comprehension = vocabulary?.comprehension || 1;
-                          if (comprehension === 1 || !vocabulary) {
-                            // Level 1 or unknown: slightly brighter underline on hover
-                            e.currentTarget.style.textDecorationColor = '#3b82f6';
-                          } else if (comprehension >= 2 && comprehension <= 4) {
-                            // Learning words (2-4): slightly brighter yellow on hover
+                        const comprehension = vocabulary?.comprehension ?? 0;
+                        if (comprehension === 1) {
+                          // Level 1: slightly brighter underline on hover
+                          e.currentTarget.style.textDecorationColor = '#3b82f6';
+                        } else if (comprehension === 2) {
+                            // Level 2: slightly brighter yellow on hover
                             e.currentTarget.style.backgroundColor = '#FFE082';
+                          } else if (comprehension === 3 || comprehension === 4) {
+                            // Level 3-4: slightly brighter light yellow on hover
+                            e.currentTarget.style.backgroundColor = '#FFFDE7';
                           }
                           // Known words (5) have no hover effect
                         }
@@ -331,16 +345,19 @@ export default function InteractiveText({ text, selectedWord, onWordClick, vocab
                       onMouseLeave={(e) => {
                         // Restore original styling
                         if (!isSelected && !isPunctuation) {
-                          const comprehension = vocabulary?.comprehension || 1;
-                          if (comprehension === 1 || !vocabulary) {
-                            // Level 1 or unknown: restore subtle blue underline
+                          const comprehension = vocabulary?.comprehension ?? 0;
+                          if (comprehension === 1) {
+                            // Level 1: restore subtle blue underline
                             e.currentTarget.style.textDecorationColor = '#60a5fa';
                           } else if (comprehension === 5) {
                             // Known words have no background
                             e.currentTarget.style.backgroundColor = 'transparent';
-                          } else if (comprehension >= 2 && comprehension <= 4) {
-                            // Learning words have yellow background
+                          } else if (comprehension === 2) {
+                            // Level 2: restore yellow background
                             e.currentTarget.style.backgroundColor = '#FFD54F';
+                          } else if (comprehension === 3 || comprehension === 4) {
+                            // Level 3-4: restore light yellow background
+                            e.currentTarget.style.backgroundColor = '#FFF9C4';
                           }
                         }
                       }}

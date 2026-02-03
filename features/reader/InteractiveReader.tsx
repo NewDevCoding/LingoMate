@@ -106,9 +106,9 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
   }, [articleWords]);
 
   /**
-   * Auto-add word to vocabulary with level 2 comprehension
-   * This is called when a user clicks on an unknown word (level 1)
-   * Clicking advances it to level 2 (yellow highlighting)
+   * Auto-add word to vocabulary with level 1 comprehension
+   * This is called when a user clicks on an unknown word (level 0)
+   * Clicking sets it to level 1 (blue underline)
    */
   const autoAddWordToVocabulary = async (word: string): Promise<void> => {
     const normalizedWord = word.toLowerCase().trim();
@@ -139,13 +139,13 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
         // Continue even if translation fails - user can add it manually
       }
       
-      // Create optimistic vocabulary entry with level 2 (clicking advances from unknown/level 1 to level 2)
+      // Create optimistic vocabulary entry with level 1 (first click sets it to level 1)
       const newVocabulary: Vocabulary = {
         id: 'temp-' + Date.now(),
         word: normalizedWord,
         translation: translation || 'Translation placeholder',
         language: 'placeholder', // TODO: Get from article or user settings
-        comprehension: 2,
+        comprehension: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -158,7 +158,7 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
       });
       
       // Save to database in background (non-blocking)
-      upsertVocabulary(word, 2, translation)
+      upsertVocabulary(word, 1, translation)
         .then(updated => {
           if (updated) {
             // Update with real database entry (replaces temp ID)
