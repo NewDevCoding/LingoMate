@@ -192,6 +192,19 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
     }
   };
 
+  // Handle vocabulary updates from WordDefinitionPanel and SentenceView
+  const handleVocabularyUpdate = (word: string, vocabulary: Vocabulary | null) => {
+    setVocabularyMap(prev => {
+      const newMap = new Map(prev);
+      if (vocabulary) {
+        newMap.set(word.toLowerCase(), vocabulary);
+      } else {
+        newMap.delete(word.toLowerCase());
+      }
+      return newMap;
+    });
+  };
+
   useEffect(() => {
     async function loadArticle() {
       setIsLoading(true);
@@ -256,6 +269,7 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
             autoAddWordToVocabulary(word);
           }}
           vocabularyMap={vocabularyMap}
+          onVocabularyUpdate={handleVocabularyUpdate}
         />
       </div>
 
@@ -264,23 +278,7 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
           word={selectedWord}
           onClose={() => setSelectedWord(null)}
           vocabularyMap={vocabularyMap}
-          onVocabularyUpdate={(word, vocabulary) => {
-            // Update vocabulary map when word is added or updated
-            if (vocabulary) {
-              setVocabularyMap(prev => {
-                const newMap = new Map(prev);
-                newMap.set(word.toLowerCase(), vocabulary);
-                return newMap;
-              });
-            } else {
-              // If vocabulary is deleted, remove from map
-              setVocabularyMap(prev => {
-                const newMap = new Map(prev);
-                newMap.delete(word.toLowerCase());
-                return newMap;
-              });
-            }
-          }}
+          onVocabularyUpdate={handleVocabularyUpdate}
         />
       </div>
     </div>
