@@ -1,5 +1,6 @@
 import { Vocabulary, VocabularyDB } from '@/types/word';
 import { supabase } from '@/lib/db/client';
+import { initializeReview } from '@/features/vocabulary/review/review.service';
 
 /**
  * Get the current user ID from Supabase auth or localStorage
@@ -162,7 +163,17 @@ export async function upsertVocabulary(
         return null;
       }
 
-      return data ? transformVocabulary(data) : null;
+      const newVocabulary = data ? transformVocabulary(data) : null;
+      
+      // Auto-initialize review entry for new vocabulary
+      if (newVocabulary) {
+        initializeReview(newVocabulary.id).catch((err) => {
+          console.error('Error auto-initializing review:', err);
+          // Don't fail vocabulary creation if review init fails
+        });
+      }
+
+      return newVocabulary;
     }
   } catch (error) {
     console.error('Error upserting vocabulary:', error);
@@ -197,6 +208,55 @@ export async function updateVocabularyComprehension(
   } catch (error) {
     console.error('Error updating vocabulary comprehension:', error);
     return null;
+  }
+}
+
+/**
+ * Batch fetch vocabulary for multiple words
+ * Returns a Map<word, Vocabulary> for efficient O(1) lookup
+ * Normalizes words to lowercase for consistent matching
+ */
+export async function getVocabularyForWords(
+  words: string[]
+): Promise<Map<string, Vocabulary>> {
+  try {
+    const userId = await getUserId();
+    
+    // Normalize words to lowercase and remove duplicates
+    const normalizedWords = Array.from(
+      new Set(words.map(word => word.toLowerCase().trim()).filter(word => word.length > 0))
+    );
+
+    if (normalizedWords.length === 0) {
+      return new Map();
+    }
+
+    // Fetch all matching vocabulary entries in one query
+    const { data, error } = await supabase
+      .from('vocabulary')
+      .select('*')
+      .eq('user_id', userId)
+      .in('word', normalizedWords);
+
+    if (error) {
+      console.error('Error fetching vocabulary for words:', error);
+      return new Map();
+    }
+
+    // Build a Map for O(1) lookup
+    const vocabularyMap = new Map<string, Vocabulary>();
+    
+    if (data) {
+      for (const dbVocab of data) {
+        const vocab = transformVocabulary(dbVocab);
+        vocabularyMap.set(vocab.word.toLowerCase(), vocab);
+      }
+    }
+
+    return vocabularyMap;
+  } catch (error) {
+    console.error('Error fetching vocabulary for words:', error);
+    return new Map();
   }
 }
 

@@ -6,6 +6,7 @@
 export interface TranslationResult {
   word: string;
   translation: string;
+  meanings?: string[]; // Multiple meanings/definitions
   sourceLanguage: string;
   targetLanguage: string;
 }

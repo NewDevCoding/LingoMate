@@ -198,6 +198,7 @@ const Sidebar = ({ isCollapsed, onToggle, isFixed = false }: SidebarProps) => {
     { name: 'Dashboard', href: '/' },
     { name: 'Reader', href: '/reader' },
     { name: 'Vocabulary', href: '/vocabulary' },
+    { name: 'Roleplay', href: '/speak/roleplay' },
   ];
 
   return (
@@ -266,31 +267,15 @@ const Sidebar = ({ isCollapsed, onToggle, isFixed = false }: SidebarProps) => {
                 {item.name === 'Vocabulary' && (
                   <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 )}
+                {item.name === 'Roleplay' && (
+                  <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                )}
               </svg>
               <span style={styles.NavText(isCollapsed)}>{item.name}</span>
             </Link>
           );
         })}
       </nav>
-
-      {/* Upgrade to Pro Card - Hidden when collapsed */}
-      {!isCollapsed && (
-        <div style={styles.UpgradeCard(isCollapsed)}>
-          <div style={styles.CrownContainer}>
-            {/* Crown Icon */}
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="#FFD700">
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-            </svg>
-          </div>
-          <div style={styles.UpgradeTitle(isCollapsed)}>Upgrade to Pro</div>
-          <div style={styles.UpgradeDescription(isCollapsed)}>
-            Unlock unlimited hearts & more !
-          </div>
-          <button style={styles.Button(isCollapsed)}>
-            GET SUPER
-          </button>
-        </div>
-      )}
     </div>
   );
 };

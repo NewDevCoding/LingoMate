@@ -9,6 +9,7 @@ interface TranslationRequest {
 
 interface TranslationResponse {
   translation: string;
+  meanings: string[]; // Multiple meanings/definitions
   sourceLanguage: string;
   targetLanguage: string;
   word: string;
@@ -93,8 +94,73 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Fetch multiple meanings from dictionary API
+    // Using Free Dictionary API (dictionaryapi.dev) for English words
+    // For Spanish words, we'll try to get English definitions of the translated word
+    let meanings: string[] = [];
+    
+    try {
+      // If translating TO English, get dictionary definitions of the translated word
+      if (targetLang === 'en') {
+        const translatedWord = translation.trim().toLowerCase();
+        // Remove common articles and prepositions that might be in translation
+        const cleanWord = translatedWord.split(/\s+/)[0].replace(/[^a-z]/g, '');
+        
+        if (cleanWord.length > 0) {
+          const dictUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${cleanWord}`;
+          const dictResponse = await fetch(dictUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+            },
+          });
+
+          if (dictResponse.ok) {
+            const dictData = await dictResponse.json();
+            if (Array.isArray(dictData) && dictData.length > 0) {
+              // Extract all meanings from all entries
+              const allMeanings = new Set<string>();
+              
+              // Add the primary translation as first meaning
+              allMeanings.add(translation.trim());
+              
+              // Extract definitions from dictionary response
+              for (const entry of dictData) {
+                if (entry.meanings && Array.isArray(entry.meanings)) {
+                  for (const meaning of entry.meanings) {
+                    if (meaning.definitions && Array.isArray(meaning.definitions)) {
+                      for (const def of meaning.definitions) {
+                        if (def.definition) {
+                          // Take first 100 chars of definition to keep it concise
+                          const shortDef = def.definition.substring(0, 100);
+                          if (shortDef.length > 0) {
+                            allMeanings.add(shortDef);
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              
+              meanings = Array.from(allMeanings).slice(0, 10); // Limit to 10 meanings
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching dictionary meanings:', error);
+      // If dictionary API fails, just use the translation as the only meaning
+    }
+
+    // If no meanings from dictionary, use the translation as the primary meaning
+    if (meanings.length === 0) {
+      meanings = [translation.trim()];
+    }
+
     const result: TranslationResponse = {
       translation: translation.trim(),
+      meanings: meanings,
       sourceLanguage: sourceLang,
       targetLanguage: targetLang,
       word: word.trim(),

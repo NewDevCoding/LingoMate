@@ -10,11 +10,11 @@ import { SidebarProvider, useSidebar } from './SidebarContext';
 const styles = {
   Screen: {
     backgroundColor: '#161616',
-    minHeight: '100vh',
+    height: '100vh', // Use fixed height instead of minHeight
     width: '100%',
     display: 'flex',
     flexDirection: 'row' as const,
-    overflowX: 'hidden' as const,
+    overflow: 'hidden' as const, // Prevent all scrolling at screen level
   } as React.CSSProperties,
   
   SidebarWrapper: {
@@ -26,20 +26,22 @@ const styles = {
     flex: 1,
     display: 'flex',
     flexDirection: 'column' as const,
-    overflowX: 'hidden' as const,
+    overflow: 'hidden' as const,
     minWidth: 0, // Prevents flex items from overflowing
     paddingTop: '100px', // Accommodate top header
+    height: '100vh', // Constrain height to viewport
   } as React.CSSProperties,
 
   MainContentWithFixedSidebar: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column' as const,
-    overflowX: 'hidden' as const,
+    overflow: 'hidden' as const,
     minWidth: 0,
     paddingTop: '100px',
     marginLeft: '279px', // Sidebar width when expanded
     transition: 'margin-left 0.3s ease',
+    height: '100vh', // Constrain height to viewport
   } as React.CSSProperties,
 };
 
@@ -68,21 +70,39 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
   // Pages where sidebar should be fixed
-  const fixedSidebarPages = ['/reader', '/vocabulary'];
+  const fixedSidebarPages = ['/vocabulary', '/speak/roleplay'];
   const isFixedSidebar = fixedSidebarPages.some(page => pathname?.startsWith(page));
+  
+  // Hide layout on auth pages
+  const isAuthPage = pathname?.startsWith('/auth');
+  
+  // Hide left sidebar completely on reader article pages for immersive experience
+  const isReaderArticlePage = pathname?.startsWith('/reader/') && pathname !== '/reader';
+  const hideLeftSidebar = isReaderArticlePage;
+  
+  if (isAuthPage) {
+    return <>{children}</>;
+  }
 
   return (
     <>
       <TopHeader />
       <div style={styles.Screen}>
-        <div style={styles.SidebarWrapper}>
-          <Sidebar 
-            isCollapsed={isCollapsed} 
-            onToggle={() => setIsCollapsed(!isCollapsed)}
-            isFixed={isFixedSidebar}
-          />
-        </div>
-        <div style={isFixedSidebar ? {
+        {!hideLeftSidebar && (
+          <div style={styles.SidebarWrapper}>
+            <Sidebar 
+              isCollapsed={isCollapsed} 
+              onToggle={() => setIsCollapsed(!isCollapsed)}
+              isFixed={isFixedSidebar}
+            />
+          </div>
+        )}
+        <div style={hideLeftSidebar ? {
+          ...styles.MainContent,
+          paddingTop: 0,
+          marginLeft: 0,
+          width: '100%',
+        } : isFixedSidebar ? {
           ...styles.MainContentWithFixedSidebar,
           marginLeft: isCollapsed ? '80px' : '279px',
         } : styles.MainContent}>

@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReaderContent from './ReaderContent';
 import WordDefinitionPanel from './WordDefinitionPanel';
 import { getArticleById } from '@/features/reader/article.service';
+import { getVocabularyForWords, upsertVocabulary } from '@/features/vocabulary/vocabulary.service';
+import { getTranslation } from '@/lib/translation/translation.service';
 import { Article } from '@/types/article';
+import { Vocabulary } from '@/types/word';
 
 interface InteractiveReaderProps {
   articleId: string;
@@ -26,11 +29,19 @@ const styles = {
   } as React.CSSProperties,
 
   RightSidebar: {
+    position: 'fixed' as const,
+    top: '116px', // Start below TopHeader with 16px margin
+    right: '16px', // 16px margin from right edge
     width: '320px',
-    backgroundColor: '#1f1f1f',
-    borderLeft: '1px solid #313131',
+    height: 'calc(100vh - 132px)', // Full height minus TopHeader and margins (100px + 16px top + 16px bottom)
+    backgroundColor: '#1a1a1a',
+    borderLeft: '2px solid #2a2a2a',
+    borderRadius: '8px',
+    boxShadow: '-4px 0 12px rgba(0, 0, 0, 0.5)',
     display: 'flex',
     flexDirection: 'column' as const,
+    zIndex: 100,
+    marginBottom: '16px', // Bottom margin
   } as React.CSSProperties,
 
   LoadingContainer: {
@@ -59,6 +70,140 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
   const [article, setArticle] = useState<Article | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [vocabularyMap, setVocabularyMap] = useState<Map<string, Vocabulary>>(new Map());
+
+  // Extract unique words from article content
+  const articleWords = useMemo(() => {
+    if (!article?.content) return [];
+    
+    // Split text into words, normalize, and remove duplicates
+    const words = article.content
+      .split(/(\s+|[.,!?;:])/)
+      .map(token => token.replace(/[.,!?;:]/g, '').toLowerCase().trim())
+      .filter(word => word.length > 0);
+    
+    return Array.from(new Set(words));
+  }, [article?.content]);
+
+  // Load vocabulary when article words change
+  useEffect(() => {
+    async function loadVocabulary() {
+      if (articleWords.length === 0) {
+        setVocabularyMap(new Map());
+        return;
+      }
+
+      try {
+        const vocabMap = await getVocabularyForWords(articleWords);
+        setVocabularyMap(vocabMap);
+      } catch (err) {
+        console.error('Error loading vocabulary:', err);
+        setVocabularyMap(new Map());
+      }
+    }
+
+    loadVocabulary();
+  }, [articleWords]);
+
+  /**
+   * Auto-add word to vocabulary with level 1 comprehension
+   * This is called when a user clicks on an unknown word (level 0)
+   * Clicking sets it to level 1 (blue underline)
+   */
+  const autoAddWordToVocabulary = async (word: string): Promise<void> => {
+    const normalizedWord = word.toLowerCase().trim();
+    
+    // Validate word
+    if (!normalizedWord || normalizedWord.length === 0) {
+      return;
+    }
+
+    // Check if word already exists in vocabulary map
+    if (vocabularyMap.has(normalizedWord)) {
+      return; // Word already added, no need to add again
+    }
+
+    try {
+      // Fetch translation automatically (non-blocking)
+      let translation = '';
+      try {
+        const translationResult = await getTranslation(word, {
+          sourceLang: 'es', // TODO: Get from article or user settings
+          targetLang: 'en',
+        });
+        if (translationResult?.translation) {
+          translation = translationResult.translation;
+        }
+      } catch (error) {
+        console.error('Error fetching translation:', error);
+        // Continue even if translation fails - user can add it manually
+      }
+      
+      // Create optimistic vocabulary entry with level 1 (first click sets it to level 1)
+      const newVocabulary: Vocabulary = {
+        id: 'temp-' + Date.now(),
+        word: normalizedWord,
+        translation: translation || 'Translation placeholder',
+        language: 'placeholder', // TODO: Get from article or user settings
+        comprehension: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // Optimistically update the map immediately for instant visual feedback
+      setVocabularyMap(prev => {
+        const newMap = new Map(prev);
+        newMap.set(normalizedWord, newVocabulary);
+        return newMap;
+      });
+      
+      // Save to database in background (non-blocking)
+      upsertVocabulary(word, 1, translation)
+        .then(updated => {
+          if (updated) {
+            // Update with real database entry (replaces temp ID)
+            setVocabularyMap(prev => {
+              const newMap = new Map(prev);
+              newMap.set(normalizedWord, updated);
+              return newMap;
+            });
+          } else {
+            // If save failed, remove from map (revert optimistic update)
+            console.error('Failed to save vocabulary to database');
+            setVocabularyMap(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(normalizedWord);
+              return newMap;
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Error saving vocabulary:', error);
+          // Revert optimistic update on error
+          setVocabularyMap(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(normalizedWord);
+            return newMap;
+          });
+        });
+    } catch (error) {
+      console.error('Error auto-adding word to vocabulary:', error);
+      // Don't update map if there's an error
+    }
+  };
+
+  // Handle vocabulary updates from WordDefinitionPanel and SentenceView
+  const handleVocabularyUpdate = (word: string, vocabulary: Vocabulary | null) => {
+    setVocabularyMap(prev => {
+      const newMap = new Map(prev);
+      if (vocabulary) {
+        newMap.set(word.toLowerCase(), vocabulary);
+      } else {
+        newMap.delete(word.toLowerCase());
+      }
+      return newMap;
+    });
+  };
 
   useEffect(() => {
     async function loadArticle() {
@@ -116,7 +261,15 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
             progress: article.progress || 0,
           }}
           selectedWord={selectedWord}
-          onWordSelect={setSelectedWord}
+          onWordSelect={(word: string) => {
+            setSelectedWord(word);
+            
+            // Auto-add word to vocabulary with level 1 if it doesn't exist
+            // This happens automatically when clicking any unknown word
+            autoAddWordToVocabulary(word);
+          }}
+          vocabularyMap={vocabularyMap}
+          onVocabularyUpdate={handleVocabularyUpdate}
         />
       </div>
 
@@ -124,6 +277,13 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
         <WordDefinitionPanel
           word={selectedWord}
           onClose={() => setSelectedWord(null)}
+          vocabularyMap={vocabularyMap}
+          onVocabularyUpdate={handleVocabularyUpdate}
+          articleContent={article?.content}
+          onWordSelect={(word: string) => {
+            setSelectedWord(word);
+            autoAddWordToVocabulary(word);
+          }}
         />
       </div>
     </div>
