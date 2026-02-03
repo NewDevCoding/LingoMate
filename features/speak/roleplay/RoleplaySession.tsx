@@ -377,11 +377,30 @@ const styles = {
     transition: 'background-color 0.2s, transform 0.2s',
   } as React.CSSProperties,
 
-  LoadingIndicator: {
-    color: '#a0a0a0',
-    fontSize: '14px',
+  TypingIndicator: {
+    display: 'flex',
+    justifyContent: 'flex-start',
+    width: '100%',
+    marginBottom: '12px',
+  } as React.CSSProperties,
+
+  TypingBubble: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    borderBottomLeftRadius: '4px',
     padding: '12px 16px',
-    alignSelf: 'flex-start',
+    maxWidth: '75px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+  } as React.CSSProperties,
+
+  TypingDot: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    backgroundColor: '#999999',
+    animation: 'typingDot 1.4s infinite ease-in-out',
   } as React.CSSProperties,
 };
 
@@ -464,6 +483,7 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
     };
   }, []);
 
+
   /**
    * Load session from database if sessionId exists
    */
@@ -473,13 +493,21 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
       const response = await fetch(`/api/roleplay/sessions/${id}`);
       if (response.ok) {
         const data = await response.json();
-        if (data.session) {
-          setMessages(data.session.messages);
-          setHasUserSentMessage(data.session.messages.some((msg: ChatMessage) => msg.role === 'user'));
+        if (data.session && data.session.messages) {
+          // Load all messages from the session
+          const loadedMessages = data.session.messages || [];
+          console.log(`Loaded ${loadedMessages.length} messages from session ${id}`);
+          setMessages(loadedMessages);
+          setHasUserSentMessage(loadedMessages.some((msg: ChatMessage) => msg.role === 'user'));
           return true;
+        } else {
+          console.warn(`Session ${id} has no messages`);
+          return false;
         }
+      } else {
+        console.error(`Failed to load session ${id}:`, response.status);
+        return false;
       }
-      return false;
     } catch (error) {
       console.error('Error loading session:', error);
       return false;
@@ -528,7 +556,42 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
   }, [scenario.id, scenario.language, router]);
 
   /**
+   * Save messages to database immediately (no debounce)
+   * Used when we need to ensure messages are saved before navigation
+   */
+  const saveMessagesImmediately = useCallback(async (messagesToSave: ChatMessage[], targetSessionId?: string) => {
+    const idToUse = targetSessionId || sessionId;
+    if (!idToUse || messagesToSave.length === 0) return;
+
+    try {
+      const response = await fetch(`/api/roleplay/sessions/${idToUse}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: messagesToSave.map(msg => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp.toISOString(),
+            suggestedResponses: msg.suggestedResponses,
+          })),
+        }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Error saving messages to database:', error);
+      } else {
+        console.log(`Saved ${messagesToSave.length} messages to session ${idToUse}`);
+      }
+    } catch (error) {
+      console.error('Error saving messages:', error);
+    }
+  }, [sessionId]);
+
+  /**
    * Save messages to database
+   * Saves all messages to ensure complete history is persisted
    */
   const saveMessagesToDatabase = useCallback(async (messagesToSave: ChatMessage[], targetSessionId?: string) => {
     const idToUse = targetSessionId || sessionId;
@@ -540,31 +603,28 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
     }
 
     // Debounce saves - wait 500ms after last message
+    // This ensures we save the complete message history, not just the latest message
     saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        const response = await fetch(`/api/roleplay/sessions/${idToUse}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: messagesToSave.map(msg => ({
-              id: msg.id,
-              role: msg.role,
-              content: msg.content,
-              timestamp: msg.timestamp.toISOString(),
-              suggestedResponses: msg.suggestedResponses,
-            })),
-          }),
-        });
-        
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-          console.error('Error saving messages to database:', error);
-        }
-      } catch (error) {
-        console.error('Error saving messages:', error);
-      }
+      await saveMessagesImmediately(messagesToSave, idToUse);
     }, 500);
-  }, [sessionId]);
+  }, [sessionId, saveMessagesImmediately]);
+
+  // Save messages before navigation/unmount
+  useEffect(() => {
+    return () => {
+      // Save messages before unmounting to ensure they're persisted
+      if (sessionId && messages.length > 0) {
+        // Clear any pending debounced save
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+        }
+        // Save immediately before navigation (use current values from closure)
+        const currentMessages = messages;
+        const currentSessionId = sessionId;
+        saveMessagesImmediately(currentMessages, currentSessionId).catch(console.error);
+      }
+    };
+  }, [sessionId, messages.length, saveMessagesImmediately]);
 
   /**
    * Play audio for a message (TTS)
@@ -781,8 +841,19 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
   }, [searchParams, loadSession, sessionId, isInitializing, isLoadingSession, checkAndLoadExistingSession, scenario.id]);
 
   // Initialize with scenario's initial message if no session loaded
+  // Only run this if we're not loading a session and have no messages
   useEffect(() => {
-    if (!isLoadingSession && messages.length === 0 && scenario.initialMessage && !sessionId && !isInitializing) {
+    // Don't initialize if:
+    // - We're loading a session (wait for it to finish)
+    // - We already have messages (session was loaded)
+    // - We already have a sessionId (session exists)
+    // - We're currently initializing
+    if (isLoadingSession || messages.length > 0 || sessionId || isInitializing) {
+      return;
+    }
+
+    // Only initialize if we have an initial message and no session
+    if (scenario.initialMessage) {
       setIsInitializing(true);
       const initialMessage: ChatMessage = {
         id: 'initial',
@@ -815,7 +886,7 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
         }
       });
     }
-  }, [scenario, messages.length, generateInitialSuggestions, playMessageAudio, createNewSession, saveMessagesToDatabase, isLoadingSession, sessionId, isInitializing]);
+  }, [scenario.initialMessage, isLoadingSession, messages.length, sessionId, isInitializing, generateInitialSuggestions, createNewSession, saveMessagesToDatabase]);
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
@@ -1022,6 +1093,30 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
         /* Hide scrollbar for Chrome, Safari and Opera */
         .messages-container::-webkit-scrollbar {
           display: none;
+        }
+        
+        /* Typing indicator animation */
+        @keyframes typingDot {
+          0%, 60%, 100% {
+            transform: translateY(0);
+            opacity: 0.7;
+          }
+          30% {
+            transform: translateY(-10px);
+            opacity: 1;
+          }
+        }
+        
+        .typing-dot-1 {
+          animation-delay: 0s;
+        }
+        
+        .typing-dot-2 {
+          animation-delay: 0.2s;
+        }
+        
+        .typing-dot-3 {
+          animation-delay: 0.4s;
         }
       `}</style>
       <div style={styles.Container}>
@@ -1235,7 +1330,13 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
             </div>
           )}
           {isLoading && (
-            <div style={styles.LoadingIndicator}>Emma is typing...</div>
+            <div style={styles.TypingIndicator}>
+              <div style={styles.TypingBubble}>
+                <div style={{ ...styles.TypingDot, animationDelay: '0s' }} className="typing-dot-1" />
+                <div style={{ ...styles.TypingDot, animationDelay: '0.2s' }} className="typing-dot-2" />
+                <div style={{ ...styles.TypingDot, animationDelay: '0.4s' }} className="typing-dot-3" />
+              </div>
+            </div>
           )}
           <div ref={messagesEndRef} />
         </div>
