@@ -10,6 +10,8 @@ interface WordDefinitionPanelProps {
   onClose: () => void;
   vocabularyMap?: Map<string, Vocabulary>;
   onVocabularyUpdate?: (word: string, vocabulary: Vocabulary | null) => void;
+  articleContent?: string;
+  onWordSelect?: (word: string) => void;
 }
 
 const styles = {
@@ -203,6 +205,90 @@ const styles = {
     backgroundColor: '#26c541',
     color: '#000000',
   } as React.CSSProperties,
+
+  ComprehensionBadge: {
+    width: '28px',
+    height: '28px',
+    borderRadius: '50%',
+    backgroundColor: '#262626',
+    border: '1px solid #313131',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '12px',
+    fontWeight: 600,
+    color: '#ffffff',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  ComprehensionBadgeNew: {
+    backgroundColor: '#3b82f6',
+    color: '#ffffff',
+    borderColor: '#3b82f6',
+  } as React.CSSProperties,
+
+  ComprehensionBadgeActive: {
+    backgroundColor: '#FFD54F',
+    color: '#000000',
+    borderColor: '#FFD54F',
+  } as React.CSSProperties,
+
+  TabContainer: {
+    display: 'flex',
+    gap: '8px',
+    paddingTop: '16px',
+    borderTop: '1px solid #313131',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  TabButton: {
+    flex: 1,
+    padding: '8px 12px',
+    backgroundColor: '#262626',
+    border: '1px solid #313131',
+    borderRadius: '6px',
+    color: '#a0a0a0',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 500,
+    transition: 'all 0.2s',
+    textAlign: 'center' as const,
+  } as React.CSSProperties,
+
+  TabButtonActive: {
+    backgroundColor: '#26c541',
+    color: '#000000',
+    borderColor: '#26c541',
+  } as React.CSSProperties,
+
+  WordListContainer: {
+    flex: 1,
+    overflowY: 'auto' as const,
+    overflowX: 'hidden' as const,
+    minHeight: 0,
+    scrollbarWidth: 'thin' as const,
+    scrollbarColor: '#404040 #1f1f1f',
+    paddingRight: '8px',
+  } as React.CSSProperties & {
+    scrollbarWidth?: 'thin' | 'auto' | 'none';
+    scrollbarColor?: string;
+  },
+
+  WordListItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '10px 12px',
+    borderBottom: '1px solid #2a2a2a',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+  } as React.CSSProperties,
+
+  WordListItemText: {
+    color: '#ffffff',
+    fontSize: '14px',
+    fontWeight: 500,
+  } as React.CSSProperties,
 };
 
 // Mock word definitions
@@ -221,13 +307,14 @@ const mockDefinitions: Record<string, { types: string[]; meanings: string[] }> =
   },
 };
 
-export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVocabularyUpdate }: WordDefinitionPanelProps) {
+export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVocabularyUpdate, articleContent, onWordSelect }: WordDefinitionPanelProps) {
   const [selectedRating, setSelectedRating] = useState<number | 'check' | null>(1);
   const [vocabulary, setVocabulary] = useState<Vocabulary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [translation, setTranslation] = useState('');
   const [meanings, setMeanings] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<'familiar' | 'new' | 'all'>('familiar');
   
   // Calculate textarea rows based on content
   const calculateTextareaRows = (text: string): number => {
@@ -399,13 +486,134 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
     }
   };
 
+  // Extract unique words from article content
+  const articleWords = React.useMemo(() => {
+    if (!articleContent) return [];
+    
+    const words = articleContent
+      .split(/(\s+|[.,!?;:])/)
+      .map(token => token.replace(/[.,!?;:]/g, '').toLowerCase().trim())
+      .filter(word => word.length > 0);
+    
+    return Array.from(new Set(words));
+  }, [articleContent]);
+
+  // Filter words by tab
+  const filteredWords = React.useMemo(() => {
+    if (!vocabularyMap) return [];
+    
+    return articleWords
+      .map(word => ({
+        word,
+        vocabulary: vocabularyMap.get(word),
+      }))
+      .filter(({ vocabulary }) => {
+        if (activeTab === 'familiar') {
+          // All words that are in the user's vocabulary (any comprehension level)
+          return !!vocabulary;
+        } else if (activeTab === 'new') {
+          return !vocabulary || vocabulary.comprehension === 0;
+        } else {
+          // 'all'
+          return true;
+        }
+      })
+      .sort((a, b) => a.word.localeCompare(b.word));
+  }, [articleWords, vocabularyMap, activeTab]);
+
   if (!word) {
     return (
-      <div style={styles.Container}>
-        <div style={styles.EmptyState}>
-          <p>Select a word to see its definition</p>
+      <>
+        <style>{`
+          .word-panel-word-list::-webkit-scrollbar {
+            width: 6px;
+          }
+          .word-panel-word-list::-webkit-scrollbar-track {
+            background: #1f1f1f;
+            border-radius: 3px;
+          }
+          .word-panel-word-list::-webkit-scrollbar-thumb {
+            background: #404040;
+            border-radius: 3px;
+          }
+          .word-panel-word-list::-webkit-scrollbar-thumb:hover {
+            background: #505050;
+          }
+        `}</style>
+        <div style={styles.Container}>
+          <div className="word-panel-word-list" style={styles.WordListContainer}>
+            {filteredWords.length > 0 ? (
+              filteredWords.map(({ word, vocabulary }, index) => {
+                const comprehension = vocabulary?.comprehension ?? 0;
+                const translation = vocabulary?.translation || '';
+                
+                return (
+                  <div
+                    key={index}
+                    style={styles.WordListItem}
+                    onClick={() => onWordSelect?.(word)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#262626';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <div
+                      style={{
+                        ...styles.ComprehensionBadge,
+                        ...(comprehension === 0 ? styles.ComprehensionBadgeNew : {}),
+                        ...(comprehension === 2 ? styles.ComprehensionBadgeActive : {}),
+                        ...(comprehension === 3 || comprehension === 4 ? { backgroundColor: '#FFF9C4', color: '#000000', borderColor: '#FFF9C4' } : {}),
+                      }}
+                    >
+                      {comprehension === 0 ? '+' : (comprehension === 5 ? '✓' : comprehension)}
+                    </div>
+                    <span style={styles.WordListItemText}>{word}</span>
+                    {translation && (
+                      <span style={{ color: '#a0a0a0', fontSize: '12px', marginLeft: 'auto' }}>{translation}</span>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div style={styles.EmptyState}>
+                <p>No {activeTab} words found</p>
+              </div>
+            )}
+          </div>
+          
+          <div style={styles.TabContainer}>
+            <button
+              style={{
+                ...styles.TabButton,
+                ...(activeTab === 'familiar' ? styles.TabButtonActive : {}),
+              }}
+              onClick={() => setActiveTab('familiar')}
+            >
+              Familiar
+            </button>
+            <button
+              style={{
+                ...styles.TabButton,
+                ...(activeTab === 'new' ? styles.TabButtonActive : {}),
+              }}
+              onClick={() => setActiveTab('new')}
+            >
+              New
+            </button>
+            <button
+              style={{
+                ...styles.TabButton,
+                ...(activeTab === 'all' ? styles.TabButtonActive : {}),
+              }}
+              onClick={() => setActiveTab('all')}
+            >
+              All
+            </button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 

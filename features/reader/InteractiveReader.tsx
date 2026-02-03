@@ -279,6 +279,11 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
           onClose={() => setSelectedWord(null)}
           vocabularyMap={vocabularyMap}
           onVocabularyUpdate={handleVocabularyUpdate}
+          articleContent={article?.content}
+          onWordSelect={(word: string) => {
+            setSelectedWord(word);
+            autoAddWordToVocabulary(word);
+          }}
         />
       </div>
     </div>
