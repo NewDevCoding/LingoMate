@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getVocabularyByWord, upsertVocabulary } from '@/features/vocabulary/vocabulary.service';
 import { Vocabulary } from '@/types/word';
 import { getTranslation } from '@/lib/translation/translation.service';
+import { AudioManager, BrowserTTSManager } from '@/lib/speech/audio.manager';
 
 interface WordDefinitionPanelProps {
   word: string | null;
@@ -61,6 +62,7 @@ const styles = {
     padding: '20px',
     marginBottom: '16px',
     flexShrink: 0,
+    overflow: 'hidden' as const,
   } as React.CSSProperties,
 
   Word: {
@@ -68,6 +70,40 @@ const styles = {
     fontSize: '32px',
     fontWeight: 700,
     marginBottom: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    wordBreak: 'break-word' as const,
+    overflowWrap: 'break-word' as const,
+  } as React.CSSProperties,
+
+  WordText: (fontSize: number) => ({
+    fontSize: `${fontSize}px`,
+    minWidth: 0,
+    flex: 1,
+    wordBreak: 'break-word' as const,
+    overflowWrap: 'break-word' as const,
+    lineHeight: '1.2',
+  } as React.CSSProperties),
+
+  SpeakerButton: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    backgroundColor: '#1f1f1f',
+    border: '1px solid #313131',
+    color: '#ffffff',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  SpeakerButtonActive: {
+    backgroundColor: '#26c541',
+    borderColor: '#26c541',
   } as React.CSSProperties,
 
   WordTypes: {
@@ -315,13 +351,149 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
   const [translation, setTranslation] = useState('');
   const [meanings, setMeanings] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'familiar' | 'new' | 'all'>('familiar');
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [wordFontSize, setWordFontSize] = useState<number>(32);
+  const audioManagerRef = useRef<AudioManager | null>(null);
+  const browserTTSRef = useRef<BrowserTTSManager | null>(null);
+  const wordTextRef = useRef<HTMLSpanElement | null>(null);
   
+  // Initialize audio managers
+  useEffect(() => {
+    audioManagerRef.current = new AudioManager();
+    browserTTSRef.current = new BrowserTTSManager();
+
+    return () => {
+      audioManagerRef.current?.cleanup();
+      browserTTSRef.current?.cleanup();
+    };
+  }, []);
+
+  // Adjust font size for long words
+  useEffect(() => {
+    if (!word || !wordTextRef.current) {
+      setWordFontSize(32);
+      return;
+    }
+
+    const adjustFontSize = () => {
+      const element = wordTextRef.current;
+      if (!element) return;
+
+      const container = element.parentElement?.parentElement;
+      if (!container) return;
+
+      const containerWidth = container.offsetWidth - 40 - 32 - 12; // padding - button - gap
+      element.style.fontSize = '32px';
+      
+      if (element.scrollWidth > containerWidth) {
+        // Calculate appropriate font size
+        const ratio = containerWidth / element.scrollWidth;
+        const newSize = Math.max(18, Math.floor(32 * ratio * 0.95));
+        setWordFontSize(newSize);
+      } else {
+        setWordFontSize(32);
+      }
+    };
+
+    // Check after render
+    const timeout = setTimeout(adjustFontSize, 0);
+    
+    // Also check on resize
+    window.addEventListener('resize', adjustFontSize);
+
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener('resize', adjustFontSize);
+    };
+  }, [word]);
+
   // Calculate textarea rows based on content
   const calculateTextareaRows = (text: string): number => {
     if (!text) return 1;
     const lines = text.split('\n').length;
     const estimatedRows = Math.ceil(text.length / 40); // Rough estimate: 40 chars per line
     return Math.max(1, Math.min(Math.max(lines, estimatedRows), 10)); // Min 1, max 10 rows
+  };
+
+  // Play word audio using TTS
+  const playWordAudio = async (wordText: string) => {
+    if (!wordText || isPlayingAudio) return;
+
+    // Stop any currently playing audio
+    audioManagerRef.current?.stop();
+    browserTTSRef.current?.stop();
+    setIsPlayingAudio(true);
+
+    try {
+      // Fetch TTS audio from API
+      const response = await fetch('/api/speech/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: wordText,
+          language: 'es', // TODO: Get from article or user settings
+          speakingRate: 1.0,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // If browser TTS fallback is suggested
+        if (errorData.method === 'browser' && browserTTSRef.current) {
+          await browserTTSRef.current.speak(wordText, 'es');
+          setIsPlayingAudio(false);
+          return;
+        }
+        
+        throw new Error(errorData.error || 'Failed to generate audio');
+      }
+
+      // Check if response is JSON (browser TTS fallback)
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        const data = await response.json();
+        if (data.method === 'browser' && browserTTSRef.current) {
+          await browserTTSRef.current.speak(wordText, 'es');
+          setIsPlayingAudio(false);
+          return;
+        }
+      }
+
+      // Get audio blob
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Play the audio
+      if (audioManagerRef.current) {
+        // Set callback for when playback ends
+        audioManagerRef.current.setOnPlaybackEnd(() => {
+          URL.revokeObjectURL(audioUrl);
+          setIsPlayingAudio(false);
+        });
+        
+        // Set error callback
+        audioManagerRef.current.setOnPlaybackError(() => {
+          URL.revokeObjectURL(audioUrl);
+          setIsPlayingAudio(false);
+        });
+        
+        await audioManagerRef.current.playAudio(audioUrl);
+      } else {
+        setIsPlayingAudio(false);
+      }
+    } catch (error) {
+      console.error('Error playing word audio:', error);
+      // Fallback to browser TTS if available
+      if (browserTTSRef.current) {
+        try {
+          await browserTTSRef.current.speak(wordText, 'es');
+        } catch (browserError) {
+          console.error('Browser TTS also failed:', browserError);
+        }
+      }
+      setIsPlayingAudio(false);
+    }
   };
 
   // Load vocabulary and translation when word changes
@@ -659,13 +831,38 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
       </div>
 
       <div style={styles.WordDisplay}>
-        <div style={styles.Word}>{word}</div>
-        <div style={styles.WordTypes}>
-          {definition.types.map((type, index) => (
-            <span key={index} style={styles.WordType}>
-              {type}
-            </span>
-          ))}
+        <div style={styles.Word}>
+          <button
+            style={{
+              ...styles.SpeakerButton,
+              ...(isPlayingAudio ? styles.SpeakerButtonActive : {}),
+            }}
+            onClick={() => playWordAudio(word)}
+            onMouseEnter={(e) => {
+              if (!isPlayingAudio) {
+                e.currentTarget.style.backgroundColor = '#262626';
+                e.currentTarget.style.borderColor = '#404040';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isPlayingAudio) {
+                e.currentTarget.style.backgroundColor = '#1f1f1f';
+                e.currentTarget.style.borderColor = '#313131';
+              }
+            }}
+            title="Listen to pronunciation"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 5L6 9H2v6h4l5 4V5z" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+          </button>
+          <span 
+            ref={wordTextRef}
+            style={styles.WordText(wordFontSize)}
+          >
+            {word}
+          </span>
         </div>
       </div>
 

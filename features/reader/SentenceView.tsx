@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Vocabulary } from '@/types/word';
 import { getTranslation } from '@/lib/translation/translation.service';
+import { AudioManager, BrowserTTSManager } from '@/lib/speech/audio.manager';
 import { upsertVocabulary } from '@/features/vocabulary/vocabulary.service';
 
 interface SentenceViewProps {
@@ -175,6 +176,11 @@ const styles = {
     cursor: 'pointer',
     color: '#a0a0a0',
     flexShrink: 0,
+    transition: 'color 0.2s',
+  } as React.CSSProperties,
+
+  SpeakerIconActive: {
+    color: '#26c541',
   } as React.CSSProperties,
 
   NavigationButtons: {
@@ -233,6 +239,9 @@ function getWordStyle(vocabulary: Vocabulary | undefined, isSelected: boolean, i
 export default function SentenceView({ text, selectedWord, onWordClick, vocabularyMap, onVocabularyUpdate }: SentenceViewProps) {
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const [wordTranslations, setWordTranslations] = useState<Map<string, string>>(new Map());
+  const [playingWord, setPlayingWord] = useState<string | null>(null);
+  const audioManagerRef = useRef<AudioManager | null>(null);
+  const browserTTSRef = useRef<BrowserTTSManager | null>(null);
 
   // Split text into sentences
   const sentences = useMemo(() => {
@@ -377,6 +386,98 @@ export default function SentenceView({ text, selectedWord, onWordClick, vocabula
   const hasPrevious = currentSentenceIndex > 0;
   const hasNext = currentSentenceIndex < sentences.length - 1;
 
+  // Initialize audio managers
+  useEffect(() => {
+    audioManagerRef.current = new AudioManager();
+    browserTTSRef.current = new BrowserTTSManager();
+
+    return () => {
+      audioManagerRef.current?.cleanup();
+      browserTTSRef.current?.cleanup();
+    };
+  }, []);
+
+  // Play word audio using TTS
+  const playWordAudio = async (wordText: string) => {
+    if (!wordText || playingWord === wordText) return;
+
+    // Stop any currently playing audio
+    audioManagerRef.current?.stop();
+    browserTTSRef.current?.stop();
+    setPlayingWord(wordText);
+
+    try {
+      // Fetch TTS audio from API
+      const response = await fetch('/api/speech/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: wordText,
+          language: 'es', // TODO: Get from article or user settings
+          speakingRate: 1.0,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // If browser TTS fallback is suggested
+        if (errorData.method === 'browser' && browserTTSRef.current) {
+          await browserTTSRef.current.speak(wordText, 'es');
+          setPlayingWord(null);
+          return;
+        }
+        
+        throw new Error(errorData.error || 'Failed to generate audio');
+      }
+
+      // Check if response is JSON (browser TTS fallback)
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        const data = await response.json();
+        if (data.method === 'browser' && browserTTSRef.current) {
+          await browserTTSRef.current.speak(wordText, 'es');
+          setPlayingWord(null);
+          return;
+        }
+      }
+
+      // Get audio blob
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Play the audio
+      if (audioManagerRef.current) {
+        // Set callback for when playback ends
+        audioManagerRef.current.setOnPlaybackEnd(() => {
+          URL.revokeObjectURL(audioUrl);
+          setPlayingWord(null);
+        });
+        
+        // Set error callback
+        audioManagerRef.current.setOnPlaybackError(() => {
+          URL.revokeObjectURL(audioUrl);
+          setPlayingWord(null);
+        });
+        
+        await audioManagerRef.current.playAudio(audioUrl);
+      } else {
+        setPlayingWord(null);
+      }
+    } catch (error) {
+      console.error('Error playing word audio:', error);
+      // Fallback to browser TTS if available
+      if (browserTTSRef.current) {
+        try {
+          await browserTTSRef.current.speak(wordText, 'es');
+        } catch (browserError) {
+          console.error('Browser TTS also failed:', browserError);
+        }
+      }
+      setPlayingWord(null);
+    }
+  };
+
   // Handle adding word to vocabulary when clicked
   const handleAddWordToVocabulary = async (wordInfo: WordInfo) => {
     // Only allow adding words that aren't already in vocabulary
@@ -490,11 +591,28 @@ export default function SentenceView({ text, selectedWord, onWordClick, vocabula
                   <div style={styles.WordRow}>
                     <span style={styles.WordText}>{wordInfo.word}</span>
                     <svg
-                      style={styles.SpeakerIcon}
+                      style={{
+                        ...styles.SpeakerIcon,
+                        ...(playingWord === wordInfo.cleanWord ? styles.SpeakerIconActive : {}),
+                      }}
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        playWordAudio(wordInfo.cleanWord);
+                      }}
+                      onMouseEnter={(e) => {
+                        if (playingWord !== wordInfo.cleanWord) {
+                          e.currentTarget.style.color = '#ffffff';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (playingWord !== wordInfo.cleanWord) {
+                          e.currentTarget.style.color = '#a0a0a0';
+                        }
+                      }}
                     >
                       <path d="M11 5L6 9H2v6h4l5 4V5z" />
                       <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
