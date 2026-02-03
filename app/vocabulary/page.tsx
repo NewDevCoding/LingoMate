@@ -118,6 +118,9 @@ const styles = {
     gap: '12px',
     margin: '0',
     marginTop: '0',
+    maxHeight: 'calc(100vh - 200px)',
+    overflowY: 'auto' as const,
+    overflowX: 'hidden' as const,
   } as React.CSSProperties,
 
   VocabularyList: {
@@ -473,7 +476,50 @@ export default function VocabularyPage() {
   })();
 
   return (
-    <div style={styles.PageContainer(isCollapsed)}>
+    <>
+      <style>{`
+        /* Custom scrollbar styling for vocabulary page */
+        .vocabulary-page-container::-webkit-scrollbar {
+          width: 8px;
+        }
+        .vocabulary-page-container::-webkit-scrollbar-track {
+          background: #161616;
+        }
+        .vocabulary-page-container::-webkit-scrollbar-thumb {
+          background: #404040;
+          border-radius: 4px;
+        }
+        .vocabulary-page-container::-webkit-scrollbar-thumb:hover {
+          background: #505050;
+        }
+        
+        /* Firefox scrollbar */
+        .vocabulary-page-container {
+          scrollbar-width: thin;
+          scrollbar-color: #404040 #161616;
+        }
+        
+        /* Main container scrollbar */
+        .vocabulary-main-container::-webkit-scrollbar {
+          width: 6px;
+        }
+        .vocabulary-main-container::-webkit-scrollbar-track {
+          background: #1f1f1f;
+        }
+        .vocabulary-main-container::-webkit-scrollbar-thumb {
+          background: #404040;
+          border-radius: 3px;
+        }
+        .vocabulary-main-container::-webkit-scrollbar-thumb:hover {
+          background: #505050;
+        }
+        
+        .vocabulary-main-container {
+          scrollbar-width: thin;
+          scrollbar-color: #404040 #1f1f1f;
+        }
+      `}</style>
+      <div style={styles.PageContainer(isCollapsed)} className="vocabulary-page-container">
       <div style={styles.TopSection}>
         <div style={styles.SearchContainer}>
           <svg
@@ -566,7 +612,7 @@ export default function VocabularyPage() {
           Due for review
         </button>
       </div>
-      <div style={styles.MainContainer}>
+      <div style={styles.MainContainer} className="vocabulary-main-container">
         <div style={styles.TableHeader}>
           <div style={styles.TableHeaderCell}>Term</div>
           <div style={styles.TableHeaderCell}>Meaning</div>
@@ -713,5 +759,6 @@ export default function VocabularyPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

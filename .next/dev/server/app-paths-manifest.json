@@ -1,6 +1,7 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
   "/api/speech/tts/route": "app/api/speech/tts/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
   "/review/page": "app/review/page.js",
   "/vocabulary/page": "app/vocabulary/page.js"
 }
