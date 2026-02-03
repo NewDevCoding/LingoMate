@@ -8,6 +8,7 @@ import { getTranslation } from '@/lib/translation/translation.service';
 interface WordDefinitionPanelProps {
   word: string | null;
   onClose: () => void;
+  vocabularyMap?: Map<string, Vocabulary>;
   onVocabularyUpdate?: (word: string, vocabulary: Vocabulary | null) => void;
 }
 
@@ -191,7 +192,7 @@ const mockDefinitions: Record<string, { types: string[]; meanings: string[] }> =
   },
 };
 
-export default function WordDefinitionPanel({ word, onClose, onVocabularyUpdate }: WordDefinitionPanelProps) {
+export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVocabularyUpdate }: WordDefinitionPanelProps) {
   const [selectedRating, setSelectedRating] = useState<number | 'check' | null>(1);
   const [vocabulary, setVocabulary] = useState<Vocabulary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -210,34 +211,45 @@ export default function WordDefinitionPanel({ word, onClose, onVocabularyUpdate 
     async function loadVocabularyAndTranslation() {
       setIsLoading(true);
       try {
-        // First, try to load existing vocabulary entry
-        const vocab = await getVocabularyByWord(word);
-        if (vocab) {
-          setVocabulary(vocab);
-          setSelectedRating(vocab.comprehension === 5 ? 'check' : vocab.comprehension);
-          setTranslation(vocab.translation);
+        // First check if word is in the vocabulary map (might be recently auto-added)
+        const normalizedWord = word.toLowerCase();
+        const mapVocab = vocabularyMap?.get(normalizedWord);
+        
+        if (mapVocab) {
+          // Word is in the map (either from auto-add or recent update)
+          setVocabulary(mapVocab);
+          setSelectedRating(mapVocab.comprehension === 5 ? 'check' : mapVocab.comprehension);
+          setTranslation(mapVocab.translation);
         } else {
-          // No vocabulary entry found, fetch translation automatically
-          setVocabulary(null);
-          setSelectedRating(1);
-          setTranslation('');
-          
-          // Fetch translation from API
-          setIsTranslating(true);
-          try {
-            const translationResult = await getTranslation(word, {
-              sourceLang: 'es', // TODO: Get from article or user settings
-              targetLang: 'en',
-            });
+          // Try to load from database
+          const vocab = await getVocabularyByWord(word);
+          if (vocab) {
+            setVocabulary(vocab);
+            setSelectedRating(vocab.comprehension === 5 ? 'check' : vocab.comprehension);
+            setTranslation(vocab.translation);
+          } else {
+            // No vocabulary entry found - word should be treated as level 1
+            setVocabulary(null);
+            setSelectedRating(1);
+            setTranslation('');
             
-            if (translationResult && translationResult.translation) {
-              setTranslation(translationResult.translation);
+            // Fetch translation from API
+            setIsTranslating(true);
+            try {
+              const translationResult = await getTranslation(word, {
+                sourceLang: 'es', // TODO: Get from article or user settings
+                targetLang: 'en',
+              });
+              
+              if (translationResult && translationResult.translation) {
+                setTranslation(translationResult.translation);
+              }
+            } catch (error) {
+              console.error('Error fetching translation:', error);
+              // Translation failed, but don't block UI - user can still enter manually
+            } finally {
+              setIsTranslating(false);
             }
-          } catch (error) {
-            console.error('Error fetching translation:', error);
-            // Translation failed, but don't block UI - user can still enter manually
-          } finally {
-            setIsTranslating(false);
           }
         }
       } catch (error) {
@@ -260,8 +272,26 @@ export default function WordDefinitionPanel({ word, onClose, onVocabularyUpdate 
 
     const comprehension = rating === 'check' ? 5 : rating;
     
-    // Optimistic update
+    // Optimistic update - update UI immediately
     setSelectedRating(rating);
+    
+    // Create optimistic vocabulary object for immediate visual update
+    const optimisticVocabulary: Vocabulary = vocabulary ? {
+      ...vocabulary,
+      comprehension,
+      updatedAt: new Date().toISOString(),
+    } : {
+      id: 'temp-' + Date.now(), // Temporary ID for optimistic update
+      word: word.toLowerCase(),
+      translation: translation || 'Translation placeholder',
+      language: 'placeholder',
+      comprehension,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    // Immediately notify parent component for instant visual update
+    onVocabularyUpdate?.(word, optimisticVocabulary);
     
     // Update in database
     try {
@@ -269,16 +299,27 @@ export default function WordDefinitionPanel({ word, onClose, onVocabularyUpdate 
       if (updated) {
         setVocabulary(updated);
         setTranslation(updated.translation);
-        // Notify parent component of vocabulary update
+        // Notify parent component with confirmed update (in case there are differences)
         onVocabularyUpdate?.(word, updated);
+      } else {
+        // If update failed, revert optimistic update
+        if (vocabulary) {
+          setSelectedRating(vocabulary.comprehension === 5 ? 'check' : vocabulary.comprehension);
+          onVocabularyUpdate?.(word, vocabulary);
+        } else {
+          setSelectedRating(1);
+          onVocabularyUpdate?.(word, null);
+        }
       }
     } catch (error) {
       console.error('Error updating vocabulary:', error);
       // Revert optimistic update on error
       if (vocabulary) {
         setSelectedRating(vocabulary.comprehension === 5 ? 'check' : vocabulary.comprehension);
+        onVocabularyUpdate?.(word, vocabulary);
       } else {
         setSelectedRating(1);
+        onVocabularyUpdate?.(word, null);
       }
     }
   };
