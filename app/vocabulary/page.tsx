@@ -1,9 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSidebar } from '@/components/SidebarContext';
 import { getVocabulary, updateVocabularyComprehension, deleteVocabulary } from '@/features/vocabulary/vocabulary.service';
-import { Vocabulary } from '@/types/word';
+import { getDueWordsCount, getDueWords } from '@/features/vocabulary/review/review.service';
+import { Vocabulary, VocabularyWithReview } from '@/types/word';
+import { AudioManager } from '@/lib/speech/audio.manager';
+import { BrowserTTSManager } from '@/lib/speech/audio.manager';
 
 const styles = {
   PageContainer: (isCollapsed: boolean) => ({
@@ -229,10 +233,29 @@ const styles = {
 
 export default function VocabularyPage() {
   const { isCollapsed } = useSidebar();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'all' | 'phrases' | 'due'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [vocabulary, setVocabulary] = useState<Vocabulary[]>([]);
+  const [dueWords, setDueWords] = useState<VocabularyWithReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [dueCount, setDueCount] = useState<number | null>(null);
+  const [playingWord, setPlayingWord] = useState<string | null>(null);
+  const audioManagerRef = useRef<AudioManager | null>(null);
+  const browserTTSRef = useRef<BrowserTTSManager | null>(null);
+
+  // Initialize audio managers
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      audioManagerRef.current = new AudioManager();
+      browserTTSRef.current = new BrowserTTSManager();
+    }
+
+    return () => {
+      audioManagerRef.current?.cleanup();
+      browserTTSRef.current?.cleanup();
+    };
+  }, []);
 
   // Load vocabulary from database
   useEffect(() => {
@@ -251,8 +274,41 @@ export default function VocabularyPage() {
     loadVocabulary();
   }, []);
 
-  const handleTabClick = (tab: 'all' | 'phrases' | 'due') => {
+  // Load due words count and list
+  useEffect(() => {
+    async function loadDueData() {
+      try {
+        const count = await getDueWordsCount();
+        setDueCount(count);
+        
+        // Load due words if on due tab
+        if (activeTab === 'due') {
+          const due = await getDueWords();
+          setDueWords(due);
+        }
+      } catch (error) {
+        console.error('Error loading due data:', error);
+      }
+    }
+
+    loadDueData();
+    // Refresh count periodically
+    const interval = setInterval(loadDueData, 30000); // Every 30 seconds
+    return () => clearInterval(interval);
+  }, [activeTab]);
+
+  const handleTabClick = async (tab: 'all' | 'phrases' | 'due') => {
     setActiveTab(tab);
+    
+    // Load due words when switching to due tab
+    if (tab === 'due') {
+      try {
+        const due = await getDueWords();
+        setDueWords(due);
+      } catch (error) {
+        console.error('Error loading due words:', error);
+      }
+    }
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -312,23 +368,109 @@ export default function VocabularyPage() {
     await handleStatusClick(itemId, 5);
   };
 
-  // Filter vocabulary based on active tab and search
-  const filteredVocabulary = vocabulary.filter((item) => {
-    // Tab filter - for now, phrases and due are not implemented
-    // if (activeTab === 'phrases' && !item.isPhrase) return false;
-    // if (activeTab === 'due' && !item.dueForReview) return false;
+  const playWordAudio = async (word: string, language: string = 'es') => {
+    if (!word || playingWord === word) return;
 
-    // Search filter
+    // Stop any currently playing audio
+    audioManagerRef.current?.stop();
+    browserTTSRef.current?.stop();
+    setPlayingWord(word);
+
+    try {
+      // Fetch TTS audio from API
+      const response = await fetch('/api/speech/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: word,
+          language: language,
+          speakingRate: 1.0,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // If browser TTS fallback is suggested
+        if (errorData.method === 'browser' && browserTTSRef.current) {
+          await browserTTSRef.current.speak(word, language);
+          setPlayingWord(null);
+          return;
+        }
+        
+        throw new Error(errorData.error || 'Failed to generate audio');
+      }
+
+      // Check if response is JSON (browser TTS fallback)
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        const data = await response.json();
+        if (data.method === 'browser' && browserTTSRef.current) {
+          await browserTTSRef.current.speak(word, language);
+          setPlayingWord(null);
+          return;
+        }
+      }
+
+      // Get audio blob
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Play the audio
+      if (audioManagerRef.current) {
+        // Set up cleanup after playback
+        const cleanup = () => {
+          setPlayingWord(null);
+          URL.revokeObjectURL(audioUrl);
+        };
+        
+        // Set callback for when playback ends
+        audioManagerRef.current.setOnPlaybackEnd(cleanup);
+        
+        // Play and wait for completion
+        try {
+          await audioManagerRef.current.playAudio(audioUrl);
+        } catch (error) {
+          cleanup();
+          throw error;
+        }
+      }
+    } catch (error) {
+      console.error('Error playing word audio:', error);
+      setPlayingWord(null);
+    }
+  };
+
+  // Filter vocabulary based on active tab and search
+  const filteredVocabulary = (() => {
+    // Get the base list based on tab
+    let baseList: Vocabulary[];
+    if (activeTab === 'due') {
+      // Convert VocabularyWithReview to Vocabulary for display
+      baseList = dueWords.map(dw => ({
+        id: dw.id,
+        word: dw.word,
+        translation: dw.translation,
+        language: dw.language,
+        comprehension: dw.comprehension,
+        createdAt: dw.createdAt,
+        updatedAt: dw.updatedAt,
+      }));
+    } else {
+      baseList = vocabulary;
+    }
+
+    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      return (
+      return baseList.filter(item =>
         item.word.toLowerCase().includes(query) ||
         item.translation.toLowerCase().includes(query)
       );
     }
 
-    return true;
-  });
+    return baseList;
+  })();
 
   return (
     <div style={styles.PageContainer(isCollapsed)}>
@@ -362,6 +504,7 @@ export default function VocabularyPage() {
         </div>
         <button
           style={styles.ReviewButton}
+          onClick={() => router.push('/review')}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = '#22b03a';
           }}
@@ -369,7 +512,7 @@ export default function VocabularyPage() {
             e.currentTarget.style.backgroundColor = '#26c541';
           }}
         >
-          Review
+          Review{dueCount !== null && dueCount > 0 ? ` (${dueCount})` : ''}
         </button>
       </div>
 
@@ -452,7 +595,62 @@ export default function VocabularyPage() {
                   e.currentTarget.style.borderColor = '#313131';
                 }}
               >
-                <div style={styles.TermCell}>{item.word}</div>
+                <div style={{ 
+                  ...styles.TermCell, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px',
+                  textDecoration: 'none',
+                  position: 'relative' as const,
+                }}>
+                  <span style={{ textDecoration: 'underline', flex: '0 0 auto' }}>{item.word}</span>
+                  <button
+                    style={{
+                      ...styles.IconButton,
+                      color: playingWord === item.word ? '#26c541' : '#808080',
+                      backgroundColor: playingWord === item.word ? '#1a3a1a' : 'transparent',
+                      minWidth: '28px',
+                      minHeight: '28px',
+                      width: '28px',
+                      height: '28px',
+                      flexShrink: 0,
+                      border: '1px solid #404040',
+                      borderRadius: '6px',
+                      opacity: 1,
+                      visibility: 'visible' as const,
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      playWordAudio(item.word, item.language);
+                    }}
+                    onMouseEnter={(e) => {
+                      if (playingWord !== item.word) {
+                        e.currentTarget.style.color = '#26c541';
+                        e.currentTarget.style.backgroundColor = '#1a2a1a';
+                        e.currentTarget.style.borderColor = '#26c541';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (playingWord !== item.word) {
+                        e.currentTarget.style.color = '#808080';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.borderColor = '#404040';
+                      }
+                    }}
+                    aria-label="Play pronunciation"
+                    title="Play pronunciation"
+                  >
+                    {playingWord === item.word ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                      </svg>
+                    )}
+                  </button>
+                </div>
                 <div style={styles.TableCell}>{item.translation || ''}</div>
                 <div style={styles.StatusCell}>
                   <button

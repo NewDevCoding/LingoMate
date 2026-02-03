@@ -39,6 +39,37 @@ CREATE INDEX IF NOT EXISTS idx_roleplay_messages_session_id ON roleplay_messages
 CREATE INDEX IF NOT EXISTS idx_roleplay_messages_timestamp ON roleplay_messages(session_id, timestamp);
 `;
 
+export const vocabularyReviewsTable = `
+CREATE TABLE IF NOT EXISTS vocabulary_reviews (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  vocabulary_id UUID REFERENCES vocabulary(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  
+  -- SRS state
+  interval_days INTEGER DEFAULT 1,
+  ease_factor DECIMAL(3,2) DEFAULT 2.5,
+  repetitions INTEGER DEFAULT 0,
+  next_review_date TIMESTAMPTZ,
+  last_reviewed_at TIMESTAMPTZ,
+  
+  -- Statistics
+  review_count INTEGER DEFAULT 0,
+  consecutive_correct INTEGER DEFAULT 0,
+  consecutive_incorrect INTEGER DEFAULT 0,
+  
+  -- Timestamps
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  
+  UNIQUE(vocabulary_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_vocabulary_reviews_user_id ON vocabulary_reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_vocabulary_reviews_next_review ON vocabulary_reviews(user_id, next_review_date);
+CREATE INDEX IF NOT EXISTS idx_vocabulary_reviews_vocab_id ON vocabulary_reviews(vocabulary_id);
+CREATE INDEX IF NOT EXISTS idx_vocabulary_reviews_due ON vocabulary_reviews(user_id, next_review_date) WHERE next_review_date IS NOT NULL;
+`;
+
 export const rlsPolicies = `
 -- Enable Row Level Security
 ALTER TABLE roleplay_sessions ENABLE ROW LEVEL SECURITY;
@@ -108,6 +139,32 @@ CREATE POLICY "Users can delete their own messages"
       AND roleplay_sessions.user_id = auth.uid()
     )
   );
+
+-- Enable Row Level Security for vocabulary_reviews
+ALTER TABLE vocabulary_reviews ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own reviews
+-- Note: For temp users (not authenticated), this allows access to any review
+-- The application layer filters by user_id to ensure security
+CREATE POLICY "Users can view their own reviews"
+  ON vocabulary_reviews FOR SELECT
+  USING (true); -- Allow all reads, filter by user_id in application
+
+-- Users can insert their own reviews
+CREATE POLICY "Users can insert their own reviews"
+  ON vocabulary_reviews FOR INSERT
+  WITH CHECK (true); -- Allow all inserts, user_id is set by application
+
+-- Users can update their own reviews
+CREATE POLICY "Users can update their own reviews"
+  ON vocabulary_reviews FOR UPDATE
+  USING (true) -- Allow all updates, filter by user_id in application
+  WITH CHECK (true);
+
+-- Users can delete their own reviews
+CREATE POLICY "Users can delete their own reviews"
+  ON vocabulary_reviews FOR DELETE
+  USING (true); -- Allow all deletes, filter by user_id in application
 `;
 
 /**
@@ -118,6 +175,8 @@ export const completeMigration = `
 ${roleplaySessionsTable}
 
 ${roleplayMessagesTable}
+
+${vocabularyReviewsTable}
 
 ${rlsPolicies}
 `;

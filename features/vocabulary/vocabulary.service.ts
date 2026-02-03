@@ -1,5 +1,6 @@
 import { Vocabulary, VocabularyDB } from '@/types/word';
 import { supabase } from '@/lib/db/client';
+import { initializeReview } from '@/features/vocabulary/review/review.service';
 
 /**
  * Get the current user ID from Supabase auth or localStorage
@@ -162,7 +163,17 @@ export async function upsertVocabulary(
         return null;
       }
 
-      return data ? transformVocabulary(data) : null;
+      const newVocabulary = data ? transformVocabulary(data) : null;
+      
+      // Auto-initialize review entry for new vocabulary
+      if (newVocabulary) {
+        initializeReview(newVocabulary.id).catch((err) => {
+          console.error('Error auto-initializing review:', err);
+          // Don't fail vocabulary creation if review init fails
+        });
+      }
+
+      return newVocabulary;
     }
   } catch (error) {
     console.error('Error upserting vocabulary:', error);
