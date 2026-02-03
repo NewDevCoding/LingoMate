@@ -209,6 +209,34 @@ export async function getUserSessions(userId: string): Promise<DatabaseSession[]
 }
 
 /**
+ * Get the most recent session for a scenario
+ */
+export async function getLatestSessionForScenario(
+  userId: string,
+  scenarioId: string
+): Promise<DatabaseSession | null> {
+  const { data, error } = await supabase
+    .from('roleplay_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('scenario_id', scenarioId)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error) {
+    // No session found is not an error
+    if (error.code === 'PGRST116') {
+      return null;
+    }
+    console.error('Error loading latest session for scenario:', error);
+    return null;
+  }
+
+  return data || null;
+}
+
+/**
  * Delete a session and all its messages
  */
 export async function deleteSession(sessionId: string): Promise<void> {

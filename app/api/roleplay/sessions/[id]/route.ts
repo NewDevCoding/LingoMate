@@ -8,10 +8,10 @@ import { loadSession, updateSession, deleteSession } from '@/features/speak/role
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sessionId = params.id;
+    const { id: sessionId } = await params;
 
     if (!sessionId) {
       return NextResponse.json(
@@ -81,10 +81,10 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sessionId = params.id;
+    const { id: sessionId } = await params;
     await updateSession(sessionId);
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -102,10 +102,10 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sessionId = params.id;
+    const { id: sessionId } = await params;
     await deleteSession(sessionId);
     return NextResponse.json({ success: true });
   } catch (error) {

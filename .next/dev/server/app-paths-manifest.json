@@ -1,7 +1,19 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
+  "/api/roleplay/message/route": "app/api/roleplay/message/route.js",
+  "/api/roleplay/scenarios/route": "app/api/roleplay/scenarios/route.js",
+  "/api/roleplay/sessions/[id]/messages/route": "app/api/roleplay/sessions/[id]/messages/route.js",
+  "/api/roleplay/sessions/[id]/route": "app/api/roleplay/sessions/[id]/route.js",
+  "/api/roleplay/sessions/route": "app/api/roleplay/sessions/route.js",
+  "/api/roleplay/suggestions/route": "app/api/roleplay/suggestions/route.js",
+  "/api/roleplay/translate/route": "app/api/roleplay/translate/route.js",
   "/api/speech/tts/route": "app/api/speech/tts/route.js",
   "/dashboard/page": "app/dashboard/page.js",
+  "/page": "app/page.js",
+  "/reader/[id]/page": "app/reader/[id]/page.js",
+  "/reader/page": "app/reader/page.js",
   "/review/page": "app/review/page.js",
+  "/speak/roleplay/[id]/page": "app/speak/roleplay/[id]/page.js",
+  "/speak/roleplay/page": "app/speak/roleplay/page.js",
   "/vocabulary/page": "app/vocabulary/page.js"
 }

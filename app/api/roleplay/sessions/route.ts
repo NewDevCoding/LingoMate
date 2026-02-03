@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { createSession, getUserSessions } from '@/features/speak/roleplay/roleplay-session.service';
+import { createSession, getUserSessions, getLatestSessionForScenario } from '@/features/speak/roleplay/roleplay-session.service';
 
 /**
  * GET /api/roleplay/sessions
- * Get all sessions for the current user
+ * Get all sessions for the current user, or get latest session for a scenario
  */
 export async function GET(request: NextRequest) {
   try {
@@ -21,6 +21,10 @@ export async function GET(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     
+    // Check if scenarioId is provided in query params
+    const { searchParams } = new URL(request.url);
+    const scenarioId = searchParams.get('scenarioId');
+    
     // Get auth token from request
     const authHeader = request.headers.get('authorization');
     if (authHeader) {
@@ -34,11 +38,23 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      // If scenarioId is provided, get latest session for that scenario
+      if (scenarioId) {
+        const latestSession = await getLatestSessionForScenario(user.id, scenarioId);
+        return NextResponse.json({ session: latestSession });
+      }
+
+      // Otherwise, get all sessions
       const sessions = await getUserSessions(user.id);
       return NextResponse.json({ sessions });
     }
 
-    // For now, return empty if no auth (for development)
+    // For anonymous users, we can't check for existing sessions server-side
+    // The client will need to handle this differently
+    // For now, return null for scenario lookup
+    if (scenarioId) {
+      return NextResponse.json({ session: null });
+    }
     return NextResponse.json({ sessions: [] });
   } catch (error) {
     console.error('Error fetching sessions:', error);
@@ -82,8 +98,11 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       // For development, allow creating sessions without auth
-      // In production, require authentication
-      const sessionId = await createSession('anonymous', scenarioId, language);
+      // Generate a proper UUID for anonymous users
+      // Note: This requires the database schema to allow NULL user_id or remove the foreign key constraint
+      const { randomUUID } = await import('crypto');
+      const anonymousUserId = randomUUID();
+      const sessionId = await createSession(anonymousUserId, scenarioId, language);
       return NextResponse.json({ sessionId });
     }
 

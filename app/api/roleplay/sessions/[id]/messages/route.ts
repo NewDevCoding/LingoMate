@@ -9,10 +9,10 @@ import { ChatMessage } from '@/types/conversation';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sessionId = params.id;
+    const { id: sessionId } = await params;
     const body = await request.json();
     
     // Support both single message and array of messages

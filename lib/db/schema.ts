@@ -8,7 +8,7 @@
 export const roleplaySessionsTable = `
 CREATE TABLE IF NOT EXISTS roleplay_sessions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID, -- Removed foreign key constraint to allow anonymous users
   scenario_id TEXT NOT NULL,
   language TEXT NOT NULL,
   started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -404,6 +404,7 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   const [translation, setTranslation] = useState<Translation | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [hasUserSentMessage, setHasUserSentMessage] = useState(false);
@@ -505,6 +506,12 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
         const data = await response.json();
         const newSessionId = data.sessionId;
         setSessionId(newSessionId);
+        
+        // Store sessionId in localStorage for this scenario
+        const storedSessionKey = `roleplay_session_${scenario.id}`;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(storedSessionKey, newSessionId);
+        }
         
         // Update URL with session ID
         const currentUrl = new URL(window.location.href);
@@ -642,18 +649,141 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
     }
   }, [scenario.language]);
 
-  // Check for sessionId in URL on mount
+  /**
+   * Check for existing session for this scenario and load it
+   * For anonymous users, we check localStorage for a stored sessionId
+   */
+  const checkAndLoadExistingSession = useCallback(async () => {
+    if (isLoadingSession || sessionId || isInitializing) return;
+    
+    setIsLoadingSession(true);
+    try {
+      // First, check localStorage for a stored sessionId for this scenario
+      const storedSessionKey = `roleplay_session_${scenario.id}`;
+      const storedSessionId = typeof window !== 'undefined' ? localStorage.getItem(storedSessionKey) : null;
+      
+      if (storedSessionId) {
+        // Try to load the stored session
+        const loaded = await loadSession(storedSessionId);
+        if (loaded) {
+          setSessionId(storedSessionId);
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.set('sessionId', storedSessionId);
+          router.replace(currentUrl.pathname + currentUrl.search, { scroll: false });
+          setIsLoadingSession(false);
+          return true;
+        } else {
+          // Session doesn't exist, remove from localStorage
+          localStorage.removeItem(storedSessionKey);
+        }
+      }
+      
+      // Try to get the latest session for this scenario from API (for authenticated users)
+      const response = await fetch(`/api/roleplay/sessions?scenarioId=${scenario.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.session && data.session.id) {
+          // Found existing session, load it
+          setSessionId(data.session.id);
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.set('sessionId', data.session.id);
+          router.replace(currentUrl.pathname + currentUrl.search, { scroll: false });
+          await loadSession(data.session.id);
+          setIsLoadingSession(false);
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking for existing session:', error);
+      return false;
+    } finally {
+      setIsLoadingSession(false);
+    }
+  }, [scenario.id, isLoadingSession, sessionId, isInitializing, loadSession, router]);
+
+  /**
+   * Reset the scenario - delete current session and start fresh
+   */
+  const resetScenario = useCallback(async () => {
+    if (!sessionId) return;
+    
+    try {
+      // Delete the current session
+      const response = await fetch(`/api/roleplay/sessions/${sessionId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        // Clear localStorage
+        const storedSessionKey = `roleplay_session_${scenario.id}`;
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(storedSessionKey);
+        }
+        
+        // Clear state
+        setSessionId(null);
+        setMessages([]);
+        setHasUserSentMessage(false);
+        
+        // Remove sessionId from URL
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.delete('sessionId');
+        router.replace(currentUrl.pathname + currentUrl.search, { scroll: false });
+        
+        // Initialize with fresh session
+        setIsInitializing(true);
+        const initialMessage: ChatMessage = {
+          id: 'initial',
+          role: 'assistant',
+          content: scenario.initialMessage,
+          timestamp: new Date(),
+          suggestedResponses: [],
+        };
+        setMessages([initialMessage]);
+        generateInitialSuggestions(scenario.initialMessage);
+        
+        createNewSession().then((newSessionId) => {
+          if (newSessionId) {
+            // Store new sessionId in localStorage
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(storedSessionKey, newSessionId);
+            }
+            saveMessagesToDatabase([initialMessage], newSessionId);
+            setTimeout(() => {
+              setIsInitializing(false);
+            }, 1000);
+          } else {
+            setIsInitializing(false);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error resetting scenario:', error);
+    }
+  }, [sessionId, scenario, generateInitialSuggestions, createNewSession, saveMessagesToDatabase, router]);
+
+  // Check for sessionId in URL on mount (but don't load if we're initializing)
   useEffect(() => {
     const urlSessionId = searchParams.get('sessionId');
-    if (urlSessionId) {
+    if (urlSessionId && urlSessionId !== sessionId && !isInitializing) {
       setSessionId(urlSessionId);
+      // Store in localStorage
+      const storedSessionKey = `roleplay_session_${scenario.id}`;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(storedSessionKey, urlSessionId);
+      }
       loadSession(urlSessionId);
+    } else if (!urlSessionId && !sessionId && !isLoadingSession && !isInitializing) {
+      // No sessionId in URL, check for existing session for this scenario
+      checkAndLoadExistingSession();
     }
-  }, [searchParams, loadSession]);
+  }, [searchParams, loadSession, sessionId, isInitializing, isLoadingSession, checkAndLoadExistingSession, scenario.id]);
 
   // Initialize with scenario's initial message if no session loaded
   useEffect(() => {
-    if (!isLoadingSession && messages.length === 0 && scenario.initialMessage && !sessionId) {
+    if (!isLoadingSession && messages.length === 0 && scenario.initialMessage && !sessionId && !isInitializing) {
+      setIsInitializing(true);
       const initialMessage: ChatMessage = {
         id: 'initial',
         role: 'assistant',
@@ -664,17 +794,28 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
       setMessages([initialMessage]);
       // Generate initial suggested responses
       generateInitialSuggestions(scenario.initialMessage);
-      // Auto-play TTS for initial message
-      playMessageAudio(initialMessage);
+      // Note: Auto-play removed for initial message due to browser autoplay policy
+      // Users can manually click the play button to hear the initial message
       // Create session in database
       createNewSession().then((newSessionId) => {
         if (newSessionId) {
+          // Store sessionId in localStorage for anonymous users
+          const storedSessionKey = `roleplay_session_${scenario.id}`;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(storedSessionKey, newSessionId);
+          }
           // Save initial message - pass sessionId directly
           saveMessagesToDatabase([initialMessage], newSessionId);
+          // Set initializing to false after a short delay to ensure message is saved
+          setTimeout(() => {
+            setIsInitializing(false);
+          }, 1000);
+        } else {
+          setIsInitializing(false);
         }
       });
     }
-  }, [scenario, messages.length, generateInitialSuggestions, playMessageAudio, createNewSession, saveMessagesToDatabase, isLoadingSession, sessionId]);
+  }, [scenario, messages.length, generateInitialSuggestions, playMessageAudio, createNewSession, saveMessagesToDatabase, isLoadingSession, sessionId, isInitializing]);
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
@@ -906,6 +1047,26 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
           <h2 style={styles.HeaderTitle}>Chat</h2>
         </div>
         <div style={styles.HeaderRight}>
+          {sessionId && (
+            <button
+              style={styles.IconButton}
+              onClick={resetScenario}
+              title="Reset scenario and start fresh"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                <path d="M3 21v-5h5" />
+              </svg>
+            </button>
+          )}
           <button
             style={styles.IconButton}
             onMouseEnter={(e) => {

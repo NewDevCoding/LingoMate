@@ -208,6 +208,15 @@ export class BrowserTTSManager {
       utterance.onerror = (event) => {
         this.isSpeaking = false;
         this.currentUtterance = null;
+        
+        // "interrupted" is not an error - it happens when speech is cancelled
+        // This is a normal case when a new utterance starts or stop() is called
+        if (event.error === 'interrupted') {
+          resolve(); // Resolve instead of reject for interrupted speech
+          return;
+        }
+        
+        // For other errors, reject
         reject(new Error(`Browser TTS error: ${event.error}`));
       };
 
