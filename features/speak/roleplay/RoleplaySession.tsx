@@ -255,7 +255,7 @@ const styles = {
     flex: 1,
     overflowY: 'auto' as const,
     overflowX: 'hidden' as const,
-    padding: '20px',
+    padding: '20px 20px 24px 20px',
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '16px',
@@ -382,13 +382,14 @@ const styles = {
   } as React.CSSProperties,
 
   InputContainer: {
-    padding: '16px 20px',
-    borderTop: '1px solid #313131',
-    backgroundColor: '#1f1f1f',
+    padding: '20px 20px 24px 20px',
+    marginTop: '16px',
+    backgroundColor: 'transparent',
     flexShrink: 0,
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '12px',
+    borderTop: 'none',
   } as React.CSSProperties,
 
   InputButtons: {
@@ -418,29 +419,31 @@ const styles = {
 
   Input: {
     flex: 1,
-    backgroundColor: '#161616',
+    backgroundColor: '#1f1f1f',
     border: '1px solid #313131',
     borderRadius: '24px',
-    padding: '12px 50px 12px 20px',
+    padding: '16px 50px 16px 20px',
     color: '#ffffff',
     fontSize: '15px',
     outline: 'none',
     boxSizing: 'border-box' as const,
     position: 'relative' as const,
     zIndex: 1,
+    minHeight: '52px',
   } as React.CSSProperties,
 
   InputRecording: {
     flex: 1,
-    backgroundColor: '#161616',
+    backgroundColor: '#1f1f1f',
     border: '1px solid #8b5cf6',
     borderRadius: '24px',
-    padding: '12px 50px 12px 50px',
+    padding: '16px 50px 16px 50px',
     color: '#ffffff',
     fontSize: '15px',
     outline: 'none',
     boxSizing: 'border-box' as const,
     position: 'relative' as const,
+    minHeight: '52px',
   } as React.CSSProperties,
 
   VolumeBarsContainer: {
@@ -452,7 +455,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '3px',
-    height: '20px',
+    height: '24px',
     zIndex: 2,
     pointerEvents: 'none' as const,
   } as React.CSSProperties,
@@ -461,9 +464,10 @@ const styles = {
     width: '3px',
     backgroundColor: '#8b5cf6',
     borderRadius: '2px',
-    transition: 'height 0.1s ease-out',
+    transition: 'height 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
     minHeight: '4px',
-    maxHeight: '20px',
+    maxHeight: '24px',
+    willChange: 'height',
   } as React.CSSProperties,
 
   SendButton: {
@@ -610,6 +614,7 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [volumeLevel, setVolumeLevel] = useState(0); // 0-100 for animation
+  const [volumeBars, setVolumeBars] = useState<number[]>([]); // Array of volume levels for each bar
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const audioManagerRef = useRef<AudioManager | null>(null);
@@ -1045,7 +1050,7 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
 
   // Check for sessionId in URL on mount (but don't load if we're initializing)
   useEffect(() => {
-    const urlSessionId = searchParams.get('sessionId');
+    const urlSessionId = searchParams?.get('sessionId');
     if (urlSessionId && urlSessionId !== sessionId && !isInitializing) {
       setSessionId(urlSessionId);
       // Store in localStorage
@@ -1437,9 +1442,15 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
       setIsRecording(true);
       isRecordingRef.current = true;
       setVolumeLevel(0);
+      setVolumeBars([]);
 
       // Start volume detection animation loop
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const NUM_BARS = 7; // Number of bars for WhatsApp-style animation
+      
+      // Initialize volume bars array
+      setVolumeBars(new Array(NUM_BARS).fill(4));
+      
       const updateVolume = () => {
         if (!analyserRef.current || !isRecordingRef.current) {
           return;
@@ -1447,7 +1458,7 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
         
         analyserRef.current.getByteFrequencyData(dataArray);
         
-        // Calculate RMS (Root Mean Square) for volume
+        // Calculate RMS (Root Mean Square) for overall volume
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) {
           sum += dataArray[i] * dataArray[i];
@@ -1457,6 +1468,46 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
         // Normalize to 0-100 range (adjust sensitivity as needed)
         const normalizedVolume = Math.min(100, (rms / 128) * 100);
         setVolumeLevel(normalizedVolume);
+        
+        // Calculate individual bar heights based on frequency ranges
+        // Each bar responds to different frequency bands for more realistic animation
+        const barHeights: number[] = [];
+        const frequencyBands = Math.floor(dataArray.length / NUM_BARS);
+        
+        for (let i = 0; i < NUM_BARS; i++) {
+          // Get average volume for this frequency band
+          let bandSum = 0;
+          const startIdx = i * frequencyBands;
+          const endIdx = Math.min(startIdx + frequencyBands, dataArray.length);
+          const bandSize = endIdx - startIdx;
+          
+          if (bandSize > 0) {
+            for (let j = startIdx; j < endIdx; j++) {
+              bandSum += dataArray[j];
+            }
+            
+            const bandAvg = bandSum / bandSize;
+            
+            // Normalize to 0-100, then scale to 4-24px height
+            // Use a more sensitive scaling for better responsiveness
+            const normalizedBand = Math.min(100, (bandAvg / 128) * 120);
+            
+            // Add subtle variation for more natural movement
+            // Each bar has a slight phase offset for independent movement
+            const phase = (i * Math.PI * 2) / NUM_BARS;
+            const timeVariation = Math.sin(Date.now() / 400 + phase) * 3;
+            
+            // Calculate height: 4px minimum, 24px maximum
+            // Use exponential scaling for more dramatic spikes
+            const baseHeight = 4 + Math.pow(normalizedBand / 100, 0.7) * 20;
+            const height = Math.max(4, Math.min(24, baseHeight + timeVariation));
+            barHeights.push(Math.round(height * 10) / 10); // Round to 1 decimal for smoother transitions
+          } else {
+            barHeights.push(4); // Default minimum height
+          }
+        }
+        
+        setVolumeBars(barHeights);
         
         if (isRecordingRef.current) {
           volumeAnimationRef.current = requestAnimationFrame(updateVolume);
@@ -1535,6 +1586,7 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
         volumeAnimationRef.current = null;
       }
       setVolumeLevel(0);
+      setVolumeBars([]);
       
       // Disconnect analyser from source
       if (analyserRef.current) {
@@ -1565,6 +1617,7 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
     setAudioBlob(null);
     setRecordingDuration(0);
     setVolumeLevel(0);
+    setVolumeBars([]);
   };
 
   // Transcription function
@@ -1593,9 +1646,27 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Transcription failed' }));
-        console.error('Transcription API error:', error);
-        throw new Error(error.error || error.message || 'Failed to transcribe audio');
+        let errorData: any = {};
+        try {
+          const errorText = await response.text();
+          if (errorText) {
+            errorData = JSON.parse(errorText);
+          }
+        } catch (e) {
+          // If parsing fails, use status text
+          errorData = { error: response.statusText || 'Transcription failed' };
+        }
+        
+        console.error('Transcription API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+          details: errorData.details,
+        });
+        
+        // Show more detailed error message if available
+        const errorMessage = errorData.message || errorData.error || `Failed to transcribe audio (${response.status})`;
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -2112,25 +2183,20 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
               style={isRecording ? styles.InputRecording : styles.Input}
               disabled={isLoading || isRecording}
             />
-            {/* Volume Bars Animation (only shown when recording) */}
-            {isRecording && (
+            {/* Volume Bars Animation (only shown when recording) - WhatsApp style */}
+            {isRecording && volumeBars.length > 0 && (
               <div style={styles.VolumeBarsContainer}>
-                {[0, 1, 2, 3, 4].map((index) => {
-                  // Calculate height for each bar based on volume level
-                  // Each bar responds to different frequency ranges with variation
-                  const baseHeight = (volumeLevel / 100) * 16;
-                  const variation = Math.sin(Date.now() / 200 + index) * 2;
-                  const barHeight = Math.max(4, Math.min(20, baseHeight + variation));
-                  return (
-                    <div
-                      key={index}
-                      style={{
-                        ...styles.VolumeBar,
-                        height: `${barHeight}px`,
-                      }}
-                    />
-                  );
-                })}
+                {volumeBars.map((height, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      ...styles.VolumeBar,
+                      height: `${height}px`,
+                      // Add slight delay for each bar for wave effect
+                      transitionDelay: `${index * 20}ms`,
+                    }}
+                  />
+                ))}
               </div>
             )}
             {/* Microphone Button (shown when not recording and no text) */}
