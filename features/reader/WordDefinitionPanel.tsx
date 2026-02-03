@@ -92,6 +92,10 @@ const styles = {
     fontSize: '14px',
     marginBottom: '24px',
     outline: 'none',
+    minHeight: '44px',
+    resize: 'vertical' as const,
+    fontFamily: 'inherit',
+    lineHeight: '1.5',
   } as React.CSSProperties,
 
   SectionTitle: {
@@ -109,22 +113,28 @@ const styles = {
 
   MeaningItem: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     padding: '12px',
     backgroundColor: '#262626',
     borderRadius: '8px',
     border: '1px solid #313131',
+    gap: '12px',
   } as React.CSSProperties,
 
   MeaningText: {
     color: '#ffffff',
     fontSize: '14px',
+    flex: 1,
+    wordWrap: 'break-word' as const,
+    overflowWrap: 'break-word' as const,
   } as React.CSSProperties,
 
   AddButton: {
     width: '24px',
     height: '24px',
+    minWidth: '24px',
+    minHeight: '24px',
     backgroundColor: '#26c541',
     border: 'none',
     borderRadius: '4px',
@@ -135,6 +145,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   } as React.CSSProperties,
 
   EmptyState: {
@@ -198,6 +209,15 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
   const [isLoading, setIsLoading] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [translation, setTranslation] = useState('');
+  const [meanings, setMeanings] = useState<string[]>([]);
+  
+  // Calculate textarea rows based on content
+  const calculateTextareaRows = (text: string): number => {
+    if (!text) return 1;
+    const lines = text.split('\n').length;
+    const estimatedRows = Math.ceil(text.length / 40); // Rough estimate: 40 chars per line
+    return Math.max(1, Math.min(Math.max(lines, estimatedRows), 10)); // Min 1, max 10 rows
+  };
 
   // Load vocabulary and translation when word changes
   useEffect(() => {
@@ -205,6 +225,7 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
       setVocabulary(null);
       setSelectedRating(1);
       setTranslation('');
+      setMeanings([]);
       return;
     }
 
@@ -234,7 +255,7 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
               setSelectedRating(1); // Show as level 1 in panel (unknown state)
               setTranslation('');
               
-              // Fetch translation from API
+              // Fetch translation and meanings from API
               setIsTranslating(true);
               try {
                 const translationResult = await getTranslation(word, {
@@ -242,12 +263,22 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
                   targetLang: 'en',
                 });
                 
-                if (translationResult && translationResult.translation) {
-                  setTranslation(translationResult.translation);
+                if (translationResult) {
+                  if (translationResult.translation) {
+                    setTranslation(translationResult.translation);
+                  }
+                  // Set multiple meanings if available
+                  if (translationResult.meanings && translationResult.meanings.length > 0) {
+                    setMeanings(translationResult.meanings);
+                  } else if (translationResult.translation) {
+                    // If no meanings array, use translation as single meaning
+                    setMeanings([translationResult.translation]);
+                  }
                 }
               } catch (error) {
                 console.error('Error fetching translation:', error);
                 // Translation failed, but don't block UI - user can still enter manually
+                setMeanings([]);
               } finally {
                 setIsTranslating(false);
               }
@@ -263,9 +294,14 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
     loadVocabularyAndTranslation();
   }, [word]);
 
+  // Use actual meanings from API, fallback to mock if needed
+  const displayMeanings = meanings.length > 0 
+    ? meanings 
+    : (word ? (mockDefinitions[word]?.meanings || ['No definition available']) : []);
+  
   const definition = word ? (mockDefinitions[word] || {
     types: ['unknown'],
-    meanings: ['No definition available'],
+    meanings: displayMeanings,
   }) : null;
 
   const handleRatingClick = async (rating: number | 'check') => {
@@ -325,7 +361,7 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
     }
   };
 
-  const handleTranslationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTranslationChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setTranslation(e.target.value);
   };
 
@@ -368,7 +404,7 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
   // Show translation loading indicator in input field
   const translationPlaceholder = isTranslating 
     ? 'Translating...' 
-    : 'Type a new meaning here';
+    : 'Enter a new meaning';
 
   return (
     <div style={styles.Container}>
@@ -390,25 +426,59 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
         </div>
       </div>
 
-      <input
-        type="text"
+      <textarea
         placeholder={translationPlaceholder}
         style={styles.InputField}
         value={translation}
         onChange={handleTranslationChange}
         onBlur={handleTranslationBlur}
         disabled={isTranslating}
+        rows={calculateTextareaRows(translation)}
       />
 
       <div>
         <div style={styles.SectionTitle}>Popular Meanings</div>
         <div style={styles.MeaningList}>
-          {definition.meanings.map((meaning, index) => (
-            <div key={index} style={styles.MeaningItem}>
-              <span style={styles.MeaningText}>{meaning}</span>
-              <button style={styles.AddButton}>+</button>
+          {displayMeanings.length > 0 ? (
+            displayMeanings.map((meaning, index) => (
+              <div key={index} style={styles.MeaningItem}>
+                <span style={styles.MeaningText}>{meaning}</span>
+                <button 
+                  style={styles.AddButton}
+                  onClick={async () => {
+                    if (!word) return;
+                    
+                    // Set this meaning as the translation in the text box
+                    setTranslation(meaning);
+                    
+                    // Get current comprehension level (default to 2 if new word, or current level if exists)
+                    const comprehension = vocabulary 
+                      ? (selectedRating === 'check' ? 5 : (selectedRating || vocabulary.comprehension))
+                      : 2; // New words start at level 2
+                    
+                    // Update vocabulary with the selected meaning
+                    try {
+                      const updated = await upsertVocabulary(word, comprehension, meaning);
+                      if (updated) {
+                        setVocabulary(updated);
+                        // Notify parent component of vocabulary update
+                        onVocabularyUpdate?.(word, updated);
+                      }
+                    } catch (error) {
+                      console.error('Error updating vocabulary with selected meaning:', error);
+                    }
+                  }}
+                  title="Use this meaning"
+                >
+                  +
+                </button>
+              </div>
+            ))
+          ) : (
+            <div style={styles.MeaningItem}>
+              <span style={styles.MeaningText}>No meanings available</span>
             </div>
-          ))}
+          )}
         </div>
       </div>
 
