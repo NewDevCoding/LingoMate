@@ -56,10 +56,14 @@ const styles = {
     width: '40px',
     height: '40px',
     borderRadius: '50%',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#8b5cf6',
     cursor: 'pointer',
     transition: 'transform 0.2s',
     flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#ffffff',
   } as React.CSSProperties,
 };
 
@@ -73,6 +77,44 @@ export default function TopHeader() {
     await signOut();
     router.push('/auth/login');
     router.refresh();
+  };
+
+  const getUserInitials = (): string => {
+    if (!user) return 'U';
+    
+    // Try to get initials from user metadata (full_name) if available
+    const fullName = user.user_metadata?.full_name || user.user_metadata?.name;
+    if (fullName) {
+      const parts = fullName.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+      if (parts.length === 1 && parts[0].length >= 2) {
+        return parts[0].substring(0, 2).toUpperCase();
+      }
+    }
+    
+    // Fallback to email initials
+    if (user.email) {
+      const emailParts = user.email.split('@');
+      const localPart = emailParts[0];
+      
+      // If email has dots or separators, use first letter of each part
+      if (localPart.includes('.') || localPart.includes('_') || localPart.includes('-')) {
+        const parts = localPart.split(/[._-]/);
+        if (parts.length >= 2) {
+          return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+      }
+      
+      // Otherwise, use first two letters of email
+      if (localPart.length >= 2) {
+        return localPart.substring(0, 2).toUpperCase();
+      }
+      return localPart[0].toUpperCase();
+    }
+    
+    return 'U';
   };
 
   return (
@@ -157,8 +199,8 @@ export default function TopHeader() {
               e.currentTarget.style.transform = 'scale(1)';
             }}
           >
-            <span style={{ color: '#161616', fontSize: '18px', fontWeight: 'bold' }}>
-              {user.email?.charAt(0).toUpperCase() || 'U'}
+            <span style={{ color: '#ffffff', fontSize: '14px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+              {getUserInitials()}
             </span>
           </div>
           {showMenu && (
