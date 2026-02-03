@@ -201,6 +201,55 @@ export async function updateVocabularyComprehension(
 }
 
 /**
+ * Batch fetch vocabulary for multiple words
+ * Returns a Map<word, Vocabulary> for efficient O(1) lookup
+ * Normalizes words to lowercase for consistent matching
+ */
+export async function getVocabularyForWords(
+  words: string[]
+): Promise<Map<string, Vocabulary>> {
+  try {
+    const userId = await getUserId();
+    
+    // Normalize words to lowercase and remove duplicates
+    const normalizedWords = Array.from(
+      new Set(words.map(word => word.toLowerCase().trim()).filter(word => word.length > 0))
+    );
+
+    if (normalizedWords.length === 0) {
+      return new Map();
+    }
+
+    // Fetch all matching vocabulary entries in one query
+    const { data, error } = await supabase
+      .from('vocabulary')
+      .select('*')
+      .eq('user_id', userId)
+      .in('word', normalizedWords);
+
+    if (error) {
+      console.error('Error fetching vocabulary for words:', error);
+      return new Map();
+    }
+
+    // Build a Map for O(1) lookup
+    const vocabularyMap = new Map<string, Vocabulary>();
+    
+    if (data) {
+      for (const dbVocab of data) {
+        const vocab = transformVocabulary(dbVocab);
+        vocabularyMap.set(vocab.word.toLowerCase(), vocab);
+      }
+    }
+
+    return vocabularyMap;
+  } catch (error) {
+    console.error('Error fetching vocabulary for words:', error);
+    return new Map();
+  }
+}
+
+/**
  * Delete vocabulary entry
  */
 export async function deleteVocabulary(id: string): Promise<boolean> {

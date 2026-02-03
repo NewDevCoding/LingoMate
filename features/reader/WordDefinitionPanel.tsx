@@ -8,6 +8,7 @@ import { getTranslation } from '@/lib/translation/translation.service';
 interface WordDefinitionPanelProps {
   word: string | null;
   onClose: () => void;
+  onVocabularyUpdate?: (word: string, vocabulary: Vocabulary | null) => void;
 }
 
 const styles = {
@@ -190,7 +191,7 @@ const mockDefinitions: Record<string, { types: string[]; meanings: string[] }> =
   },
 };
 
-export default function WordDefinitionPanel({ word, onClose }: WordDefinitionPanelProps) {
+export default function WordDefinitionPanel({ word, onClose, onVocabularyUpdate }: WordDefinitionPanelProps) {
   const [selectedRating, setSelectedRating] = useState<number | 'check' | null>(1);
   const [vocabulary, setVocabulary] = useState<Vocabulary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -268,6 +269,8 @@ export default function WordDefinitionPanel({ word, onClose }: WordDefinitionPan
       if (updated) {
         setVocabulary(updated);
         setTranslation(updated.translation);
+        // Notify parent component of vocabulary update
+        onVocabularyUpdate?.(word, updated);
       }
     } catch (error) {
       console.error('Error updating vocabulary:', error);
@@ -292,6 +295,8 @@ export default function WordDefinitionPanel({ word, onClose }: WordDefinitionPan
       const updated = await upsertVocabulary(word, comprehension, translation);
       if (updated) {
         setVocabulary(updated);
+        // Notify parent component of vocabulary update
+        onVocabularyUpdate?.(word, updated);
       }
     } catch (error) {
       console.error('Error updating translation:', error);

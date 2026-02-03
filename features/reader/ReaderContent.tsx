@@ -4,11 +4,13 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import InteractiveText from './InteractiveText';
 import { Article } from '@/types/article';
+import { Vocabulary } from '@/types/word';
 
 interface ReaderContentProps {
   article: Article & { source: string; thumbnail?: string; progress: number };
   selectedWord: string | null;
   onWordSelect: (word: string | null) => void;
+  vocabularyMap: Map<string, Vocabulary>;
 }
 
 const styles = {
@@ -116,7 +118,7 @@ const styles = {
   } as React.CSSProperties,
 };
 
-export default function ReaderContent({ article, selectedWord, onWordSelect }: ReaderContentProps) {
+export default function ReaderContent({ article, selectedWord, onWordSelect, vocabularyMap }: ReaderContentProps) {
   const router = useRouter();
 
   const handleBack = () => {
@@ -173,6 +175,7 @@ export default function ReaderContent({ article, selectedWord, onWordSelect }: R
             text={article.content}
             selectedWord={selectedWord}
             onWordClick={onWordSelect}
+            vocabularyMap={vocabularyMap}
           />
         </div>
       </div>

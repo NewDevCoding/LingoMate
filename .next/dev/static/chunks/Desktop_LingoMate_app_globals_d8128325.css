@@ -494,6 +494,10 @@
     display: inline;
   }
 
+  .inline-block {
+    display: inline-block;
+  }
+
   .table {
     display: table;
   }
@@ -934,6 +938,10 @@
 
   .text-yellow-400 {
     color: var(--color-yellow-400);
+  }
+
+  .lowercase {
+    text-transform: lowercase;
   }
 
   .uppercase {

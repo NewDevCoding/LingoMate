@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReaderContent from './ReaderContent';
 import WordDefinitionPanel from './WordDefinitionPanel';
 import { getArticleById } from '@/features/reader/article.service';
+import { getVocabularyForWords } from '@/features/vocabulary/vocabulary.service';
 import { Article } from '@/types/article';
+import { Vocabulary } from '@/types/word';
 
 interface InteractiveReaderProps {
   articleId: string;
@@ -59,6 +61,40 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
   const [article, setArticle] = useState<Article | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [vocabularyMap, setVocabularyMap] = useState<Map<string, Vocabulary>>(new Map());
+
+  // Extract unique words from article content
+  const articleWords = useMemo(() => {
+    if (!article?.content) return [];
+    
+    // Split text into words, normalize, and remove duplicates
+    const words = article.content
+      .split(/(\s+|[.,!?;:])/)
+      .map(token => token.replace(/[.,!?;:]/g, '').toLowerCase().trim())
+      .filter(word => word.length > 0);
+    
+    return Array.from(new Set(words));
+  }, [article?.content]);
+
+  // Load vocabulary when article words change
+  useEffect(() => {
+    async function loadVocabulary() {
+      if (articleWords.length === 0) {
+        setVocabularyMap(new Map());
+        return;
+      }
+
+      try {
+        const vocabMap = await getVocabularyForWords(articleWords);
+        setVocabularyMap(vocabMap);
+      } catch (err) {
+        console.error('Error loading vocabulary:', err);
+        setVocabularyMap(new Map());
+      }
+    }
+
+    loadVocabulary();
+  }, [articleWords]);
 
   useEffect(() => {
     async function loadArticle() {
@@ -117,6 +153,7 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
           }}
           selectedWord={selectedWord}
           onWordSelect={setSelectedWord}
+          vocabularyMap={vocabularyMap}
         />
       </div>
 
@@ -124,6 +161,23 @@ export default function InteractiveReader({ articleId }: InteractiveReaderProps)
         <WordDefinitionPanel
           word={selectedWord}
           onClose={() => setSelectedWord(null)}
+          onVocabularyUpdate={(word, vocabulary) => {
+            // Update vocabulary map when word is added or updated
+            if (vocabulary) {
+              setVocabularyMap(prev => {
+                const newMap = new Map(prev);
+                newMap.set(word.toLowerCase(), vocabulary);
+                return newMap;
+              });
+            } else {
+              // If vocabulary is deleted, remove from map
+              setVocabularyMap(prev => {
+                const newMap = new Map(prev);
+                newMap.delete(word.toLowerCase());
+                return newMap;
+              });
+            }
+          }}
         />
       </div>
     </div>

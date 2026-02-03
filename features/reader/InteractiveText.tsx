@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
+import { Vocabulary } from '@/types/word';
 
 interface InteractiveTextProps {
   text: string;
   selectedWord: string | null;
   onWordClick: (word: string) => void;
+  vocabularyMap: Map<string, Vocabulary>;
 }
 
 const styles = {
@@ -72,9 +74,11 @@ const styles = {
 
   Word: {
     cursor: 'pointer',
-    padding: '2px 4px',
-    borderRadius: '4px',
+    padding: '0',
+    marginRight: '0.25em',
+    borderRadius: '2px',
     transition: 'background-color 0.2s',
+    display: 'inline',
   } as React.CSSProperties,
 
   WordHighlighted: {
@@ -86,13 +90,54 @@ const styles = {
     backgroundColor: '#26c541',
     color: '#000000',
   } as React.CSSProperties,
+
+  WordUnknown: {
+    textDecoration: 'underline',
+    textDecorationColor: '#60a5fa',
+    textDecorationThickness: '1px',
+    textUnderlineOffset: '2px',
+  } as React.CSSProperties,
+
+  WordLearning: {
+    backgroundColor: '#FFD700',
+    color: '#000000',
+  } as React.CSSProperties,
+
+  WordKnown: {
+    backgroundColor: '#26c541',
+    color: '#000000',
+  } as React.CSSProperties,
 };
 
 // Approximate words per page - set high to display larger paragraphs
 // This creates fewer pages with more content per page
 const WORDS_PER_PAGE = 300;
 
-export default function InteractiveText({ text, selectedWord, onWordClick }: InteractiveTextProps) {
+/**
+ * Get word color style based on vocabulary status
+ */
+function getWordStyle(vocabulary: Vocabulary | undefined, isSelected: boolean): React.CSSProperties {
+  // Selected word always shows green highlight
+  if (isSelected) {
+    return styles.WordSelected;
+  }
+
+  // If word is in vocabulary, color based on comprehension level
+  if (vocabulary) {
+    if (vocabulary.comprehension === 5) {
+      // Known (comprehension 5): No highlighting - default text color
+      return styles.WordUnknown;
+    } else if (vocabulary.comprehension >= 1 && vocabulary.comprehension <= 4) {
+      // Learning (comprehension 1-4): Yellow
+      return styles.WordLearning;
+    }
+  }
+
+  // Unknown word: Default styling
+  return styles.WordUnknown;
+}
+
+export default function InteractiveText({ text, selectedWord, onWordClick, vocabularyMap }: InteractiveTextProps) {
   const [currentPage, setCurrentPage] = useState(0);
 
   // Split text into words and punctuation, preserving spaces
@@ -188,6 +233,8 @@ export default function InteractiveText({ text, selectedWord, onWordClick }: Int
           {currentPageWords.map((word, index) => {
             const cleanWord = word.replace(/[.,!?;:]/g, '').toLowerCase();
             const isSelected = selectedWord === cleanWord;
+            const vocabulary = vocabularyMap.get(cleanWord);
+            const wordStyle = getWordStyle(vocabulary, isSelected);
 
             if (word.trim() === '') {
               return <span key={index}>{word}</span>;
@@ -198,17 +245,37 @@ export default function InteractiveText({ text, selectedWord, onWordClick }: Int
                 key={index}
                 style={{
                   ...styles.Word,
-                  ...(isSelected ? styles.WordSelected : {}),
+                  ...wordStyle,
                 }}
                 onClick={() => handleWordClick(word)}
                 onMouseEnter={(e) => {
+                  // Hover effects for different word statuses
                   if (!isSelected) {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                    if (!vocabulary) {
+                      // Unknown words: slightly brighter underline on hover
+                      e.currentTarget.style.textDecorationColor = '#3b82f6';
+                    } else if (vocabulary.comprehension !== 5) {
+                      // Learning words (1-4): slightly brighter yellow
+                      if (vocabulary.comprehension >= 1 && vocabulary.comprehension <= 4) {
+                        e.currentTarget.style.backgroundColor = '#FFE55C';
+                      }
+                    }
+                    // Known words (5) have no hover effect
                   }
                 }}
                 onMouseLeave={(e) => {
+                  // Restore original styling
                   if (!isSelected) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
+                    if (!vocabulary) {
+                      // Unknown words: restore subtle blue underline
+                      e.currentTarget.style.textDecorationColor = '#60a5fa';
+                    } else if (vocabulary.comprehension === 5) {
+                      // Known words have no background
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    } else if (vocabulary.comprehension >= 1 && vocabulary.comprehension <= 4) {
+                      // Learning words have yellow background
+                      e.currentTarget.style.backgroundColor = '#FFD700';
+                    }
                   }
                 }}
               >
