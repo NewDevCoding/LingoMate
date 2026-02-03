@@ -190,10 +190,8 @@ export default function ReviewSession({ words, onComplete }: ReviewSessionProps)
   }, [isFlipped]);
 
   const handleExit = () => {
-    if (window.confirm('Are you sure you want to exit? Your progress will be saved.')) {
-      onComplete?.();
-      window.history.back();
-    }
+    onComplete?.();
+    window.history.back();
   };
 
   if (isComplete) {
@@ -266,7 +264,7 @@ export default function ReviewSession({ words, onComplete }: ReviewSessionProps)
                   e.currentTarget.style.transform = 'scale(1)';
                 }}
               >
-                Again (1)
+                Again
               </button>
               <button
                 style={styles.QualityButton(1, false)}
@@ -281,7 +279,7 @@ export default function ReviewSession({ words, onComplete }: ReviewSessionProps)
                   e.currentTarget.style.transform = 'scale(1)';
                 }}
               >
-                Hard (2)
+                Hard
               </button>
               <button
                 style={styles.QualityButton(3, false)}
@@ -296,7 +294,7 @@ export default function ReviewSession({ words, onComplete }: ReviewSessionProps)
                   e.currentTarget.style.transform = 'scale(1)';
                 }}
               >
-                Good (3)
+                Good
               </button>
               <button
                 style={styles.QualityButton(4, false)}
@@ -311,18 +309,9 @@ export default function ReviewSession({ words, onComplete }: ReviewSessionProps)
                   e.currentTarget.style.transform = 'scale(1)';
                 }}
               >
-                Easy (4)
+                Easy
               </button>
             </div>
-            <div style={styles.KeyboardHint}>
-              Press 1-4 to rate, or click the buttons above
-            </div>
-          </div>
-        )}
-
-        {!isFlipped && (
-          <div style={styles.KeyboardHint}>
-            Press Spacebar or click the card to flip
           </div>
         )}
       </div>

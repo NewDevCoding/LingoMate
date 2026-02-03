@@ -285,7 +285,9 @@ export default function Flashcard({ vocabulary, isFlipped, onFlip }: FlashcardPr
             </button>
             <div style={styles.Word}>{vocabulary.word}</div>
           </div>
-          <div style={styles.Language}>{vocabulary.language}</div>
+          {vocabulary.language && vocabulary.language !== 'placeholder' && (
+            <div style={styles.Language}>{vocabulary.language}</div>
+          )}
           <div style={styles.FlipHint}>Click or press Spacebar to flip</div>
         </div>
 
@@ -341,7 +343,9 @@ export default function Flashcard({ vocabulary, isFlipped, onFlip }: FlashcardPr
               ) : null}
             </div>
           )}
-          <div style={styles.Language}>{vocabulary.language}</div>
+          {vocabulary.language && vocabulary.language !== 'placeholder' && (
+            <div style={styles.Language}>{vocabulary.language}</div>
+          )}
           <div style={styles.FlipHint}>Click or press Spacebar to flip</div>
         </div>
       </div>
