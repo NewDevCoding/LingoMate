@@ -35,8 +35,9 @@ const styles = {
   } as React.CSSProperties),
 
   Header: {
-    padding: '24px 32px',
+    padding: '16px 32px',
     borderBottom: '1px solid #313131',
+    backgroundColor: '#161616',
   } as React.CSSProperties,
 
   HeaderContent: {
@@ -90,7 +91,7 @@ const styles = {
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'center',
-    padding: '40px 80px 60px 80px',
+    padding: '24px 380px 60px 60px', // Reduced top padding to match LingQ
     position: 'relative' as const,
     overflow: 'hidden' as const,
     minHeight: 0, // Allows flex child to shrink
@@ -170,7 +171,7 @@ export default function ReaderContent({ article, selectedWord, onWordSelect, voc
       </div>
 
       <div style={styles.ContentArea}>
-        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'visible' }}>
           <InteractiveText
             text={article.content}
             selectedWord={selectedWord}

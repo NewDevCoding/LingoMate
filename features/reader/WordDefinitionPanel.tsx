@@ -18,6 +18,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column' as const,
     height: '100%',
+    overflow: 'hidden' as const,
   } as React.CSSProperties,
 
   Header: {
@@ -57,6 +58,7 @@ const styles = {
     borderRadius: '12px',
     padding: '20px',
     marginBottom: '16px',
+    flexShrink: 0,
   } as React.CSSProperties,
 
   Word: {
@@ -82,6 +84,21 @@ const styles = {
     fontWeight: 500,
   } as React.CSSProperties,
 
+  ScrollableContent: {
+    flex: 1,
+    overflowY: 'auto' as const,
+    overflowX: 'hidden' as const,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    minHeight: 0,
+    // Custom scrollbar styling
+    scrollbarWidth: 'thin' as const,
+    scrollbarColor: '#404040 #1f1f1f',
+  } as React.CSSProperties & {
+    scrollbarWidth?: 'thin' | 'auto' | 'none';
+    scrollbarColor?: string;
+  },
+
   InputField: {
     width: '100%',
     padding: '12px',
@@ -96,6 +113,7 @@ const styles = {
     resize: 'vertical' as const,
     fontFamily: 'inherit',
     lineHeight: '1.5',
+    flexShrink: 0,
   } as React.CSSProperties,
 
   SectionTitle: {
@@ -160,10 +178,10 @@ const styles = {
   } as React.CSSProperties,
 
   Footer: {
-    marginTop: 'auto',
     display: 'flex',
     gap: '8px',
     paddingTop: '16px',
+    flexShrink: 0,
   } as React.CSSProperties,
 
   FooterButton: {
@@ -407,8 +425,25 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
     : 'Enter a new meaning';
 
   return (
-    <div style={styles.Container}>
-      <div style={styles.Header}>
+    <>
+      <style>{`
+        .word-panel-scrollable::-webkit-scrollbar {
+          width: 6px;
+        }
+        .word-panel-scrollable::-webkit-scrollbar-track {
+          background: #1f1f1f;
+          border-radius: 3px;
+        }
+        .word-panel-scrollable::-webkit-scrollbar-thumb {
+          background: #404040;
+          border-radius: 3px;
+        }
+        .word-panel-scrollable::-webkit-scrollbar-thumb:hover {
+          background: #505050;
+        }
+      `}</style>
+      <div style={styles.Container}>
+        <div style={styles.Header}>
         <div style={styles.LanguageToggle}>
           <span style={styles.ToggleLeft}>ES</span>
           <span style={styles.ToggleRight}>IS</span>
@@ -426,21 +461,22 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
         </div>
       </div>
 
-      <textarea
-        placeholder={translationPlaceholder}
-        style={styles.InputField}
-        value={translation}
-        onChange={handleTranslationChange}
-        onBlur={handleTranslationBlur}
-        disabled={isTranslating}
-        rows={calculateTextareaRows(translation)}
-      />
+      <div className="word-panel-scrollable" style={styles.ScrollableContent}>
+        <textarea
+          placeholder={translationPlaceholder}
+          style={styles.InputField}
+          value={translation}
+          onChange={handleTranslationChange}
+          onBlur={handleTranslationBlur}
+          disabled={isTranslating}
+          rows={calculateTextareaRows(translation)}
+        />
 
-      <div>
-        <div style={styles.SectionTitle}>Popular Meanings</div>
-        <div style={styles.MeaningList}>
-          {displayMeanings.length > 0 ? (
-            displayMeanings.map((meaning, index) => (
+        <div>
+          <div style={styles.SectionTitle}>Popular Meanings</div>
+          <div style={styles.MeaningList}>
+            {displayMeanings.length > 0 ? (
+              displayMeanings.slice(0, 10).map((meaning, index) => (
               <div key={index} style={styles.MeaningItem}>
                 <span style={styles.MeaningText}>{meaning}</span>
                 <button 
@@ -479,6 +515,7 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
               <span style={styles.MeaningText}>No meanings available</span>
             </div>
           )}
+        </div>
         </div>
       </div>
 
@@ -536,6 +573,7 @@ export default function WordDefinitionPanel({ word, onClose, vocabularyMap, onVo
           </svg>
         </button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

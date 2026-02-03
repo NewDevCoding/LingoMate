@@ -13,22 +13,22 @@ interface InteractiveTextProps {
 const styles = {
   Wrapper: {
     width: '100%',
-    maxWidth: '800px',
+    maxWidth: '950px',
     margin: '0 auto',
     position: 'relative' as const,
     height: '100%',
-    paddingLeft: '64px',
-    paddingRight: '64px',
+    paddingLeft: '40px',
+    paddingRight: '40px',
     display: 'flex' as const,
     flexDirection: 'column' as const,
-    overflow: 'hidden' as const,
+    overflow: 'visible' as const,
   } as React.CSSProperties,
 
   Container: {
     color: '#ffffff',
     fontSize: '18px',
     fontWeight: 500,
-    lineHeight: '1.8',
+    lineHeight: '1.6',
     flex: 1,
     textAlign: 'left' as const,
     maxWidth: '100%',
@@ -47,14 +47,14 @@ const styles = {
     width: '100%',
     height: '100%',
     overflow: 'hidden' as const,
-    gap: '1.07em', // Reduced by 1/3 from 1.6em
+    gap: '1.2em', // Sentence spacing to match LingQ
     boxSizing: 'border-box' as const,
   } as React.CSSProperties,
 
   Sentence: {
     display: 'block' as const,
     marginBottom: '0',
-    lineHeight: '1.8',
+    lineHeight: '1.6',
   } as React.CSSProperties,
 
   ChevronButton: {
@@ -77,11 +77,11 @@ const styles = {
   } as React.CSSProperties,
 
   ChevronLeft: {
-    left: '8px',
+    left: '-70px',
   } as React.CSSProperties,
 
   ChevronRight: {
-    right: '8px',
+    right: '-70px',
   } as React.CSSProperties,
 
   ChevronButtonDisabled: {
@@ -104,8 +104,8 @@ const styles = {
   } as React.CSSProperties,
 
   WordSelected: {
-    backgroundColor: '#26c541',
-    color: '#000000',
+    backgroundColor: '#3b82f6',
+    color: '#ffffff',
   } as React.CSSProperties,
 
   WordUnknown: {
@@ -127,9 +127,9 @@ const styles = {
 };
 
 // Approximate words per page - calculated to fit viewport without overflow
-// Based on: ~18px font, 1.8 line height, ~1.6em gap between sentences
-// Balanced to fill page while preventing overflow
-const WORDS_PER_PAGE = 160;
+// Based on: ~18px font, 1.6 line height, ~1.2em gap between sentences
+// Adjusted to match LingQ's text density
+const WORDS_PER_PAGE = 280;
 
 /**
  * Get word color style based on vocabulary status
@@ -193,14 +193,15 @@ export default function InteractiveText({ text, selectedWord, onWordClick, vocab
     const pages: string[][] = [];
     let currentPageSentences: string[] = [];
     let wordCount = 0;
-
-    // Use 95% of max to account for sentence spacing and prevent overflow
-    const threshold = Math.floor(WORDS_PER_PAGE * 0.95);
+    let pageIndex = 0;
 
     for (const sentence of sentences) {
       // Count words in this sentence
       const sentenceWords = sentence.split(/\s+/).filter(w => w.trim().length > 0);
       const sentenceWordCount = sentenceWords.length;
+
+    // Use a higher threshold (99%) to maximize page filling and match LingQ density
+    const threshold = Math.floor(WORDS_PER_PAGE * 0.99);
 
       // If adding this sentence would exceed the threshold, start a new page
       // Only split if we already have sentences on the current page
@@ -209,6 +210,7 @@ export default function InteractiveText({ text, selectedWord, onWordClick, vocab
         pages.push([...currentPageSentences]);
         currentPageSentences = [sentence]; // Start new page with this sentence
         wordCount = sentenceWordCount;
+        pageIndex++;
       } else {
         // Add sentence to current page
         currentPageSentences.push(sentence);

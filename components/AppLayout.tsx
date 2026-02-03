@@ -70,11 +70,15 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
   // Pages where sidebar should be fixed
-  const fixedSidebarPages = ['/reader', '/vocabulary', '/speak/roleplay'];
+  const fixedSidebarPages = ['/vocabulary', '/speak/roleplay'];
   const isFixedSidebar = fixedSidebarPages.some(page => pathname?.startsWith(page));
   
   // Hide layout on auth pages
   const isAuthPage = pathname?.startsWith('/auth');
+  
+  // Hide left sidebar completely on reader article pages for immersive experience
+  const isReaderArticlePage = pathname?.startsWith('/reader/') && pathname !== '/reader';
+  const hideLeftSidebar = isReaderArticlePage;
   
   if (isAuthPage) {
     return <>{children}</>;
@@ -84,14 +88,21 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
     <>
       <TopHeader />
       <div style={styles.Screen}>
-        <div style={styles.SidebarWrapper}>
-          <Sidebar 
-            isCollapsed={isCollapsed} 
-            onToggle={() => setIsCollapsed(!isCollapsed)}
-            isFixed={isFixedSidebar}
-          />
-        </div>
-        <div style={isFixedSidebar ? {
+        {!hideLeftSidebar && (
+          <div style={styles.SidebarWrapper}>
+            <Sidebar 
+              isCollapsed={isCollapsed} 
+              onToggle={() => setIsCollapsed(!isCollapsed)}
+              isFixed={isFixedSidebar}
+            />
+          </div>
+        )}
+        <div style={hideLeftSidebar ? {
+          ...styles.MainContent,
+          paddingTop: 0,
+          marginLeft: 0,
+          width: '100%',
+        } : isFixedSidebar ? {
           ...styles.MainContentWithFixedSidebar,
           marginLeft: isCollapsed ? '80px' : '279px',
         } : styles.MainContent}>

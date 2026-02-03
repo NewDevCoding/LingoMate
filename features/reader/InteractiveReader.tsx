@@ -29,11 +29,16 @@ const styles = {
   } as React.CSSProperties,
 
   RightSidebar: {
+    position: 'fixed' as const,
+    top: '100px', // Start below TopHeader
+    right: 0,
     width: '320px',
+    height: 'calc(100vh - 100px)', // Full height minus TopHeader
     backgroundColor: '#1f1f1f',
     borderLeft: '1px solid #313131',
     display: 'flex',
     flexDirection: 'column' as const,
+    zIndex: 100,
   } as React.CSSProperties,
 
   LoadingContainer: {
