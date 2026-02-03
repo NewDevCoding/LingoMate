@@ -5,6 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { RoleplayScenario, ChatMessage } from '@/types/conversation';
 import { AudioManager, BrowserTTSManager } from '@/lib/speech/audio.manager';
 import { useAuth } from '@/components/AuthProvider';
+import { PronunciationAssessment } from '@/types/assessment';
+import PronunciationFeedback from './PronunciationFeedback';
+import { canUsePronunciationAssessment } from '@/lib/subscription/subscription';
 
 const styles = {
   Container: {
@@ -615,6 +618,10 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [volumeLevel, setVolumeLevel] = useState(0); // 0-100 for animation
   const [volumeBars, setVolumeBars] = useState<number[]>([]); // Array of volume levels for each bar
+  // Pronunciation assessment state
+  const [pronunciationAssessment, setPronunciationAssessment] = useState<PronunciationAssessment | null>(null);
+  const [isAssessing, setIsAssessing] = useState(false);
+  const [showAssessment, setShowAssessment] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const audioManagerRef = useRef<AudioManager | null>(null);
@@ -1213,13 +1220,15 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
         const blob = await stopRecording();
         
         if (blob) {
+          // Store blob for potential assessment
+          setAudioBlob(blob);
+          
           // Transcribe the audio
           const transcribedText = await transcribeAudio(blob);
           if (transcribedText.trim()) {
-            // Send the transcribed text
-            sendMessage(transcribedText);
-            // Clear the input after sending
-            setInputValue('');
+            // Set transcribed text in input for user to review/edit
+            setInputValue(transcribedText);
+            // Note: We don't auto-send, user can review and send or assess first
           } else {
             alert('Could not transcribe audio. Please try again or type your message.');
           }
@@ -1233,6 +1242,87 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
     } else if (inputValue.trim()) {
       // Normal text message
       sendMessage(inputValue);
+      setInputValue('');
+    }
+  };
+
+  // Assess pronunciation function
+  const assessPronunciation = async (audioBlob: Blob, transcribedText?: string): Promise<void> => {
+    try {
+      setIsAssessing(true);
+      
+      // Check if user can use pronunciation assessment (premium gating)
+      const userId = user?.id;
+      const canUse = await canUsePronunciationAssessment(userId);
+      
+      if (!canUse.allowed) {
+        alert(canUse.reason || 'Pronunciation assessment is not available. Please upgrade to Premium.');
+        setIsAssessing(false);
+        return;
+      }
+      
+      // Validate audio blob
+      if (!audioBlob || audioBlob.size === 0) {
+        throw new Error('No audio recorded. Please record again.');
+      }
+
+      console.log('Assessing pronunciation:', {
+        size: audioBlob.size,
+        type: audioBlob.type,
+        language: scenario.language,
+        referenceText: transcribedText,
+      });
+
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.webm');
+      formData.append('language', scenario.language);
+      
+      // Use transcribed text as reference if available
+      if (transcribedText) {
+        formData.append('referenceText', transcribedText);
+      }
+
+      const response = await fetch('/api/speech/assess', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        let errorData: any = {};
+        try {
+          const errorText = await response.text();
+          if (errorText) {
+            errorData = JSON.parse(errorText);
+          }
+        } catch (e) {
+          errorData = { error: response.statusText || 'Assessment failed' };
+        }
+        
+        const errorMessage = errorData.message || errorData.error || `Failed to assess pronunciation (${response.status})`;
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      if (data.pronunciation) {
+        setPronunciationAssessment(data.pronunciation);
+        setShowAssessment(true);
+      } else {
+        throw new Error('No assessment data received');
+      }
+    } catch (error: any) {
+      console.error('Error assessing pronunciation:', error);
+      alert(`Failed to assess pronunciation: ${error.message}`);
+    } finally {
+      setIsAssessing(false);
+    }
+  };
+
+  // Handle assess pronunciation button click
+  const handleAssessPronunciation = async () => {
+    if (audioBlob) {
+      await assessPronunciation(audioBlob, inputValue.trim() || undefined);
+    } else {
+      alert('No audio available to assess. Please record a message first.');
     }
   };
 
@@ -2150,6 +2240,27 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
             >
               Suggest a response
             </button>
+            {/* Assess Pronunciation Button (shown when audio is available) */}
+            {audioBlob && !isRecording && (
+              <button
+                type="button"
+                style={styles.InputButton}
+                onClick={handleAssessPronunciation}
+                disabled={isLoading || isAssessing}
+                onMouseEnter={(e) => {
+                  if (!isLoading && !isAssessing) {
+                    e.currentTarget.style.backgroundColor = '#313131';
+                    e.currentTarget.style.borderColor = '#404040';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#262626';
+                  e.currentTarget.style.borderColor = '#313131';
+                }}
+              >
+                {isAssessing ? 'Assessing...' : 'Assess Pronunciation'}
+              </button>
+            )}
           </div>
 
           {/* Input Field */}
@@ -2179,7 +2290,7 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder={isRecording ? `Recording... ${Math.floor(recordingDuration / 60)}:${String(recordingDuration % 60).padStart(2, '0')}` : "Aa"}
+              placeholder={isRecording ? "Recording..." : "Aa"}
               style={isRecording ? styles.InputRecording : styles.Input}
               disabled={isLoading || isRecording}
             />
@@ -2255,6 +2366,18 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
               </button>
             )}
           </form>
+          
+          {/* Pronunciation Assessment Feedback */}
+          {showAssessment && pronunciationAssessment && (
+            <PronunciationFeedback
+              assessment={pronunciationAssessment}
+              onClose={() => {
+                setShowAssessment(false);
+                setPronunciationAssessment(null);
+              }}
+              isPremium={false} // TODO: Check actual user subscription status from subscription service
+            />
+          )}
         </div>
       </div>
 
