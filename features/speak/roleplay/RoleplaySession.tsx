@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { RoleplayScenario, ChatMessage } from '@/types/conversation';
 import { AudioManager, BrowserTTSManager } from '@/lib/speech/audio.manager';
 
@@ -398,18 +398,22 @@ interface Translation {
 
 export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingSession, setIsLoadingSession] = useState(false);
   const [translation, setTranslation] = useState<Translation | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [hasUserSentMessage, setHasUserSentMessage] = useState(false);
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const audioManagerRef = useRef<AudioManager | null>(null);
   const browserTTSRef = useRef<BrowserTTSManager | null>(null);
   const messageAudioCacheRef = useRef<Map<string, string>>(new Map()); // Cache audio URLs by message ID
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const generateInitialSuggestions = useCallback(async (aiMessage: string) => {
     try {
@@ -459,9 +463,197 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
     };
   }, []);
 
+  /**
+   * Load session from database if sessionId exists
+   */
+  const loadSession = useCallback(async (id: string) => {
+    setIsLoadingSession(true);
+    try {
+      const response = await fetch(`/api/roleplay/sessions/${id}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.session) {
+          setMessages(data.session.messages);
+          setHasUserSentMessage(data.session.messages.some((msg: ChatMessage) => msg.role === 'user'));
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error loading session:', error);
+      return false;
+    } finally {
+      setIsLoadingSession(false);
+    }
+  }, []);
+
+  /**
+   * Create a new session in the database
+   */
+  const createNewSession = useCallback(async () => {
+    try {
+      const response = await fetch('/api/roleplay/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenarioId: scenario.id,
+          language: scenario.language,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const newSessionId = data.sessionId;
+        setSessionId(newSessionId);
+        
+        // Update URL with session ID
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('sessionId', newSessionId);
+        router.replace(currentUrl.pathname + currentUrl.search, { scroll: false });
+        
+        return newSessionId;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error creating session:', error);
+      return null;
+    }
+  }, [scenario.id, scenario.language, router]);
+
+  /**
+   * Save messages to database
+   */
+  const saveMessagesToDatabase = useCallback(async (messagesToSave: ChatMessage[], targetSessionId?: string) => {
+    const idToUse = targetSessionId || sessionId;
+    if (!idToUse || messagesToSave.length === 0) return;
+
+    // Clear any pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounce saves - wait 500ms after last message
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/roleplay/sessions/${idToUse}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: messagesToSave.map(msg => ({
+              id: msg.id,
+              role: msg.role,
+              content: msg.content,
+              timestamp: msg.timestamp.toISOString(),
+              suggestedResponses: msg.suggestedResponses,
+            })),
+          }),
+        });
+        
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('Error saving messages to database:', error);
+        }
+      } catch (error) {
+        console.error('Error saving messages:', error);
+      }
+    }, 500);
+  }, [sessionId]);
+
+  /**
+   * Play audio for a message (TTS)
+   */
+  const playMessageAudio = useCallback(async (message: ChatMessage) => {
+    if (message.role !== 'assistant' || !message.content.trim()) {
+      return;
+    }
+
+    // Stop any currently playing audio
+    audioManagerRef.current?.stop();
+    browserTTSRef.current?.stop();
+    setPlayingMessageId(message.id);
+
+    try {
+      // Check if we have cached audio for this message
+      const cachedUrl = messageAudioCacheRef.current.get(message.id);
+      
+      if (cachedUrl) {
+        // Use cached audio
+        await audioManagerRef.current?.playAudio(cachedUrl);
+        setPlayingMessageId(null);
+        return;
+      }
+
+      // Fetch TTS audio from API
+      const response = await fetch('/api/speech/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: message.content,
+          language: scenario.language,
+          speakingRate: 1.0, // Normal speed
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // If browser TTS fallback is suggested
+        if (errorData.method === 'browser' && browserTTSRef.current) {
+          await browserTTSRef.current.speak(message.content, scenario.language);
+          setPlayingMessageId(null);
+          return;
+        }
+        
+        throw new Error(errorData.error || 'Failed to generate audio');
+      }
+
+      // Check if response is JSON (browser TTS fallback)
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        const data = await response.json();
+        if (data.method === 'browser' && browserTTSRef.current) {
+          await browserTTSRef.current.speak(message.content, scenario.language);
+          setPlayingMessageId(null);
+          return;
+        }
+      }
+
+      // Get audio blob
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      // Cache the audio URL
+      messageAudioCacheRef.current.set(message.id, audioUrl);
+      
+      // Play the audio
+      await audioManagerRef.current?.playAudio(audioUrl);
+    } catch (error) {
+      console.error('Error playing message audio:', error);
+      // Fallback to browser TTS if available
+      if (browserTTSRef.current) {
+        try {
+          await browserTTSRef.current.speak(message.content, scenario.language);
+        } catch (browserError) {
+          console.error('Browser TTS also failed:', browserError);
+        }
+      }
+    } finally {
+      setPlayingMessageId(null);
+    }
+  }, [scenario.language]);
+
+  // Check for sessionId in URL on mount
   useEffect(() => {
-    // Initialize with the scenario's initial message
-    if (messages.length === 0 && scenario.initialMessage) {
+    const urlSessionId = searchParams.get('sessionId');
+    if (urlSessionId) {
+      setSessionId(urlSessionId);
+      loadSession(urlSessionId);
+    }
+  }, [searchParams, loadSession]);
+
+  // Initialize with scenario's initial message if no session loaded
+  useEffect(() => {
+    if (!isLoadingSession && messages.length === 0 && scenario.initialMessage && !sessionId) {
       const initialMessage: ChatMessage = {
         id: 'initial',
         role: 'assistant',
@@ -474,8 +666,15 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
       generateInitialSuggestions(scenario.initialMessage);
       // Auto-play TTS for initial message
       playMessageAudio(initialMessage);
+      // Create session in database
+      createNewSession().then((newSessionId) => {
+        if (newSessionId) {
+          // Save initial message - pass sessionId directly
+          saveMessagesToDatabase([initialMessage], newSessionId);
+        }
+      });
     }
-  }, [scenario, messages.length, generateInitialSuggestions]);
+  }, [scenario, messages.length, generateInitialSuggestions, playMessageAudio, createNewSession, saveMessagesToDatabase, isLoadingSession, sessionId]);
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
@@ -535,10 +734,23 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
         suggestedResponses: [],
       };
 
-      setMessages([...updatedMessages, aiMessage]);
+      const finalMessages = [...updatedMessages, aiMessage];
+      setMessages(finalMessages);
       
       // Auto-play TTS for the new AI message
       playMessageAudio(aiMessage);
+      
+      // Save messages to database
+      if (sessionId) {
+        saveMessagesToDatabase(finalMessages);
+      } else {
+        // If no session yet, create one
+        const newSessionId = await createNewSession();
+        if (newSessionId) {
+          // Pass the new sessionId directly since state might not be updated yet
+          saveMessagesToDatabase(finalMessages, newSessionId);
+        }
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       // Show error message
@@ -605,94 +817,20 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
   };
 
   /**
-   * Play audio for a message (TTS)
-   */
-  const playMessageAudio = useCallback(async (message: ChatMessage) => {
-    if (message.role !== 'assistant' || !message.content.trim()) {
-      return;
-    }
-
-    // Stop any currently playing audio
-    audioManagerRef.current?.stop();
-    browserTTSRef.current?.stop();
-    setIsPlayingAudio(true);
-
-    try {
-      // Check if we have cached audio for this message
-      const cachedUrl = messageAudioCacheRef.current.get(message.id);
-      
-      if (cachedUrl) {
-        // Use cached audio
-        await audioManagerRef.current?.playAudio(cachedUrl);
-        setIsPlayingAudio(false);
-        return;
-      }
-
-      // Fetch TTS audio from API
-      const response = await fetch('/api/speech/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: message.content,
-          language: scenario.language,
-          speakingRate: 1.0, // Normal speed
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        
-        // If browser TTS fallback is suggested
-        if (errorData.method === 'browser' && browserTTSRef.current) {
-          await browserTTSRef.current.speak(message.content, scenario.language);
-          setIsPlayingAudio(false);
-          return;
-        }
-        
-        throw new Error(errorData.error || 'Failed to generate audio');
-      }
-
-      // Check if response is JSON (browser TTS fallback)
-      const contentType = response.headers.get('content-type');
-      if (contentType?.includes('application/json')) {
-        const data = await response.json();
-        if (data.method === 'browser' && browserTTSRef.current) {
-          await browserTTSRef.current.speak(message.content, scenario.language);
-          setIsPlayingAudio(false);
-          return;
-        }
-      }
-
-      // Get audio blob
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      
-      // Cache the audio URL
-      messageAudioCacheRef.current.set(message.id, audioUrl);
-      
-      // Play the audio
-      await audioManagerRef.current?.playAudio(audioUrl);
-    } catch (error) {
-      console.error('Error playing message audio:', error);
-      // Fallback to browser TTS if available
-      if (browserTTSRef.current) {
-        try {
-          await browserTTSRef.current.speak(message.content, scenario.language);
-        } catch (browserError) {
-          console.error('Browser TTS also failed:', browserError);
-        }
-      }
-    } finally {
-      setIsPlayingAudio(false);
-    }
-  }, [scenario.language]);
-
-  /**
    * Handle replay button click - replay audio for a specific message
    */
   const handleReplay = useCallback((message: ChatMessage) => {
     playMessageAudio(message);
   }, [playMessageAudio]);
+
+  /**
+   * Handle stop button click - stop currently playing audio
+   */
+  const handleStop = useCallback(() => {
+    audioManagerRef.current?.stop();
+    browserTTSRef.current?.stop();
+    setPlayingMessageId(null);
+  }, []);
 
   const handleTranslate = async (message: ChatMessage) => {
     setIsTranslating(true);
@@ -835,24 +973,39 @@ export default function RoleplaySession({ scenario }: RoleplaySessionProps) {
                 </p>
                 {message.role === 'assistant' && (
                   <div style={styles.MessageActions}>
-                    <button
-                      style={styles.ActionButton}
-                      onClick={() => handleReplay(message)}
-                      disabled={isPlayingAudio}
-                      onMouseEnter={(e) => {
-                        if (!isPlayingAudio) {
+                    {playingMessageId === message.id ? (
+                      <button
+                        style={styles.ActionButton}
+                        onClick={handleStop}
+                        onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M3 12a9 9 0 019-9 9.75 9.75 0 016.5 2.5L21 8M3 12v4m0-4h4m13-4v4m0-4h-4" />
-                      </svg>
-                      {isPlayingAudio ? 'Playing...' : 'Replay'}
-                    </button>
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="6" y="6" width="12" height="12" rx="2" />
+                        </svg>
+                        Stop
+                      </button>
+                    ) : (
+                      <button
+                        style={styles.ActionButton}
+                        onClick={() => handleReplay(message)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 12a9 9 0 019-9 9.75 9.75 0 016.5 2.5L21 8M3 12v4m0-4h4m13-4v4m0-4h-4" />
+                        </svg>
+                        Replay
+                      </button>
+                    )}
                     <button
                       style={styles.ActionButton}
                       onClick={() => handleTranslate(message)}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import RoleplaySession from '@/features/speak/roleplay/RoleplaySession';
 import { getScenarioById } from '@/features/speak/roleplay/roleplay.service';
 import { notFound } from 'next/navigation';
@@ -15,5 +15,9 @@ export default async function RoleplaySessionPage({ params }: RoleplayPageProps)
     notFound();
   }
 
-  return <RoleplaySession scenario={scenario} />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <RoleplaySession scenario={scenario} />
+    </Suspense>
+  );
 }
