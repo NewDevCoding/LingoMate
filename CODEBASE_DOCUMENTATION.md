@@ -9,8 +9,9 @@
 6. [Components](#components)
 7. [State Management (Stores)](#state-management-stores)
 8. [Type Definitions](#type-definitions)
-9. [Libraries & Utilities](#libraries--utilities)
-10. [Important Details](#important-details)
+9. [Schemas](#schemas)
+10. [Libraries & Utilities](#libraries--utilities)
+11. [Important Details](#important-details)
 
 ---
 
@@ -347,6 +348,87 @@ interface Article {
 - **Status**: Empty (to be defined)
 
 ---
+
+## Schemas
+
+Details of how the data in our database is organized in tables.
+
+### Articles
+Long-form bodies of example content to be read in the interactive reader
+
+| Column name | Type                        | Nullable | Description                                                    |
+| ----------- | --------------------------- | -------- | -------------------------------------------------------------- |
+| id          | uuid                        | No       | Primary key                                                    |
+| title       | text                        | Yes      | The title of the article                                       |
+| url         | text                        | No       | The external webpage the article was sourced from              |
+| date        | date                        | Yes      | The date the article was created on its original platform      |
+| description | text                        | Yes      | A brief description of what the article is about               |
+| content     | text                        | Yes      | The text of the article in the target language                 |
+| inserted_at | timestamptz                 | Yes      | When the article was first imported to LingoMate               |
+| image       | text                        | Yes      | A URL to an image that will serve as the cover for the article |
+
+### roleplay_messages
+Individual messages sent in roleplay sessions
+
+| Column name         | Type                     | Nullable | Description                                                            |
+| ------------------- | ------------------------ | -------- | -----------                                                            |
+| id                  | uuid                     | No       | Primary key                                                            |
+| session_id          | uuid                     | Yes      | Primary key of the related entry of the roleplay_sessions table        |
+| message_id          | text                     | No       |                                                                        |
+| role                | text                     | No       | Who sent the message: either "assistant" or "user"                     |
+| content             | text                     | No       | The text content of the message                                        |
+| timestamp           | timestamptz              | No       | When the message was sent                                              |
+| suggested_responses | jsonb                    | Yes      | Possible ways to respond to this message, given as an array of strings |
+| created_at          | timestamptz              | No       | When the message was created                                           |
+
+### roleplay_sessions
+Individual sessions with the chat roleplay feature
+
+| Column name   | Type        | Nullable | Description                                                |
+| ------------- | ----------- | -------- | ---------------------------------------------------------- |
+| id            | uuid        | No       | Primary key                                                |
+| user_id       | uuid        | Yes      | The primary key of the related user                        |
+| scenario_id   | text        | No       | The identifier for the related scenario                    |
+| language      | text        | No       | The 2-letter ISO code for the language                     |
+| started_at    | timestamptz | No       | When the first message in the session was sent             |
+| updated_at    | timestamptz | No       | When the roleplay session was last interacted with/updated |
+| message_count | integer     | Yes      | The total number of messages in the session                |
+| created_at    | timestamptz | No       | When the roleplay session was created                      |
+
+### vocabulary
+Vocabulary words being tracked and learned by a user
+
+| Column name   | Type                     | Nullable | Description                                             |
+| ------------- | ------------------------ | -------- | ------------------------------------------------------- |
+| id            | uuid                     | No       | Primary key                                             |
+| user_id       | text                     | No       | The user's username                                     |
+| word          | text                     | No       | The word in the target language                         |
+| translation   | text                     | No       | The word in English                                     |
+| language      | text                     | No       | The 2-letter ISO code for the language                  |
+| comprehension | int4                     | No       | An integer (1-5) for the word's stage in the SRS system |
+| updated_at    | timestamptz              | No       | When the word was last updated                          |
+| created_at    | timestamptz              | No       | When the word was created                               |
+
+### vocabulary_reviews
+Description here
+
+| Column name   | Type                     | Nullable | Description |
+| ------------- | ------------------------ | -------- | ----------- |
+| id            | uuid                     | No       | Primary key |
+| vocabulary_id | uuid                     | Yes      |             |
+| user_id       | uuid                     | Yes      |             |
+| interval_days | int4                     | Yes      |             |
+| ease_factor   | numeric                  | Yes      |             |
+| repetitions   | int4                     | Yes      |             |
+| next_review_date | timestamptz           | Yes      |             |
+| last_reviewed_at | timestamptz           | Yes      |             |
+| review_count  | int4                     | Yes      |             |
+| consecutive_correct | int4               | Yes      |             |
+| consecutive_incorrect | int4             | Yes      |             |
+| created_at    | timestamptz              | Yes      |             |
+| uploaded_at   | timestamptz              | Yes      |             |
+
+
 
 ## Libraries & Utilities
 
