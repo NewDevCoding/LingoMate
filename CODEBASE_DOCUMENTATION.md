@@ -408,6 +408,11 @@ Vocabulary words being tracked and learned by a user
 | comprehension | int4                     | No       | An integer (1-5) for the word's stage in the SRS system |
 | updated_at    | timestamptz              | No       | When the word was last updated                          |
 | created_at    | timestamptz              | No       | When the word was created                               |
+| gender        | text                     | Yes      | The gender of the word: "m" for masculine, "f" for feminine, "n" for neuter, and null for no gender. Gender only applies to nouns in languages with grammatical gender. |
+| notes         | array of text            | No       | Notes on how to use the word                            |
+| ex_sentences  | array of text            | No       | Example sentences using the word in the target language |
+| ex_translations | array of text          | No       | English translations of the values in the ex_sentences column |
+| ex_positive   | array of bools           | No       | Whether each sentence in ex_sentences is a positive or negative example of how to use the word. Most will be positive. |
 
 ### vocabulary_reviews
 Description here
